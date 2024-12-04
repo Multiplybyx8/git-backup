@@ -56,13 +56,12 @@ function createLogData(req, res, message, logType) {
     url: req.originalUrl || null,
     status: res.statusCode || null,
     log_message: message || null,
-    log_type: logType || null,
-    create_by: req.user || null
+    log_type: logType || null
   };
 }
 
 async function insertLogData(connection, logData) {
-  const { ip, method, url, status, log_message, log_type, create_by } = logData;
+  const { ip, method, url, status, log_message, log_type } = logData;
   const dataLogType = log_type?.split(" - ")[0];
   const dateTime = dateHelper.dateT();
   const method_url = `[${status}][${method}]:${url}`;
@@ -70,10 +69,10 @@ async function insertLogData(connection, logData) {
 
   const query = `
     INSERT INTO log
-    (log_ip, log_method, log_name, log_type, create_date, create_by)
-    VALUES (?, ?, ?, ?, ?, ?)`;
+    (log_ip, log_method, log_name, log_type, log_date)
+    VALUES (?, ?, ?, ?, ?)`;
 
-  return await connection.execute(query, [ip, method_url, dataLog, dataLogType, dateTime, create_by]);
+  return await connection.execute(query, [ip, method_url, dataLog, dataLogType, dateTime]);
 }
 
 function normalizeIp(ip) {
