@@ -1,0 +1,17 @@
+version: '3.8'
+services:
+  cloudflare: 
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: x8-webhook:1.0.0
+    env_file:
+      - stack.env
+    ports:
+      - '33809:33809'
+    restart: always
+    volumes:
+      - cert-volume:/app/certificate
+volumes:
+  cert-volume:
+    external: true
