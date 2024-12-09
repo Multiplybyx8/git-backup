@@ -1,6 +1,6 @@
 version: '3.8'
 services:
-  cloudflare: 
+  node-app: 
     build:
       context: .
       dockerfile: Dockerfile
@@ -12,6 +12,8 @@ services:
     restart: always
     volumes:
       - cert-volume:/app/certificate
+    networks:
+      - Superbridge
 volumes:
   cert-volume:
     external: true
