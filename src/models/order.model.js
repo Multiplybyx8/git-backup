@@ -140,8 +140,14 @@ const withDbConnection = async (callback) => {
 // Base model for order operations
 const orderModelBase = async (body, headers, processCallback) => {
   if (isEmpty(body)) return null;
-  await responseResultOrder(body, headers);
-  return processCallback ? processCallback(body) : body.number;
+
+  const resultOrder = await responseResultOrder(body, headers);
+  const resultData = {
+    number: processCallback ? processCallback(body) : body.number,
+    status: resultOrder == null ? null : resultOrder
+  };
+
+  return resultData;
 };
 
 // Generic order models
@@ -162,13 +168,14 @@ const getUrl = () =>
 // Send data to external URLs
 const responseResultOrder = async (body, headers) => {
   const urlData = await getUrl();
-  if (isEmpty(urlData)) return;
 
+  if (isEmpty(urlData)) return null;
   const { result: urls } = urlData;
+  const responses = [];
+
   for (const { url } of urls) {
     try {
-      console.log("method = method", "url = ", url, "headers = ", headers, "data = ", body);
-
+      const trimmedUrl = url.trim();
       // const response = await axios({
       //   method: "post",
       //   url,
@@ -176,12 +183,15 @@ const responseResultOrder = async (body, headers) => {
       //   data: body,
       //   httpsAgent: new https.Agent({ rejectUnauthorized: false })
       // });
-      // return response;
+      console.log("method:", "post\n", "url:", `${trimmedUrl}\n`, "headers = ", headers, "data = ", body);
+      const response = trimmedUrl;
+      responses.push(response);
     } catch (error) {
       console.error("Error:", error.response?.data?.message || error.message);
       throw error;
     }
   }
+  return responses;
 };
 
 module.exports = {

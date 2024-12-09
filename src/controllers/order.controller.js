@@ -129,6 +129,7 @@
 
 const orderModel = require("../models/order.model");
 const log = require("../middleware/logger");
+const isEmpty = require("lodash.isempty");
 
 /**
  * Handles API responses and logs errors.
@@ -148,7 +149,8 @@ const handleRequest = async (req, res, modelMethod, textMessage, responseKey = "
     const response = {
       message: "success",
       api: textMessage,
-      [responseKey]: result ?? defaultResponse
+      [responseKey]: result.number ?? defaultResponse,
+      destination: isEmpty(result.status) ? "No destination link." : result.status
     };
 
     res.status(200).json(response);
