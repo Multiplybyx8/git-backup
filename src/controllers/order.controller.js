@@ -12,10 +12,12 @@ const isEmpty = require("lodash.isempty");
  * @param {*} defaultResponse - The default value for the response key.
  */
 const handleRequest = async (req, res, modelMethod, textMessage, responseKey = "so-number", defaultResponse = {}) => {
-  const { headers, body } = req;
+  const { headers, body, query } = req;
+
+  console.log("req", req);
 
   try {
-    const result = await modelMethod(body, headers);
+    const result = await modelMethod(body, headers, query);
 
     const response = {
       message: "success",

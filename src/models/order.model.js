@@ -14,10 +14,10 @@ const withDbConnection = async (callback) => {
   }
 };
 
-const orderModelBase = async (body, headers, processCallback) => {
+const orderModelBase = async (body, headers, query, processCallback) => {
   if (isEmpty(body)) return null;
 
-  const resultOrder = await responseResultOrder(body, headers);
+  const resultOrder = await responseResultOrder(body, headers, query);
   const resultData = {
     number: processCallback ? processCallback(body) : body.number,
     status: resultOrder == null ? null : resultOrder
@@ -26,11 +26,11 @@ const orderModelBase = async (body, headers, processCallback) => {
   return resultData;
 };
 
-const addOrderModel = (body, headers) => orderModelBase(body, headers);
-const updateOrderModel = (body, headers) => orderModelBase(body, headers);
-const updatePaymentOrderModel = (body, headers) => orderModelBase(body, headers);
-const updateTrackingOrderModel = (body, headers) => orderModelBase(body, headers, (body) => body.map((item) => item.trackingno));
-const deleteOrderModel = (body, headers) => orderModelBase(body, headers);
+const addOrderModel = (body, headers, query) => orderModelBase(body, headers, query);
+const updateOrderModel = (body, headers, query) => orderModelBase(body, headers, query);
+const updatePaymentOrderModel = (body, headers, query) => orderModelBase(body, headers, query);
+const updateTrackingOrderModel = (body, headers, query) => orderModelBase(body, headers, query, (body) => body.map((item) => item.trackingno));
+const deleteOrderModel = (body, headers, query) => orderModelBase(body, headers, query);
 
 const getUrl = () =>
   withDbConnection(async (connection) => {
@@ -39,7 +39,7 @@ const getUrl = () =>
     return data.length > 0 ? { result: data } : null;
   });
 
-const responseResultOrder = async (body, headers) => {
+const responseResultOrder = async (body, headers, query) => {
   const urlData = await getUrl();
 
   if (isEmpty(urlData)) return null;
@@ -51,6 +51,7 @@ const responseResultOrder = async (body, headers) => {
       const trimmedUrl = url.trim();
       await axios.post(trimmedUrl, {
         headers: headers,
+        query: query,
         data: body
         // httpsAgent: new https.Agent({ rejectUnauthorized: false })
       });
