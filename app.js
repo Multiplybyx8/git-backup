@@ -43,7 +43,7 @@ app.use((req, res, next) => {
   next();
 });
 
-// app.use(apiKeyMiddleware);
+app.use(apiKeyMiddleware);
 app.use("/order", orderRouter);
 
 app.get("/", (req, res) => res.render("successed.ejs"));
