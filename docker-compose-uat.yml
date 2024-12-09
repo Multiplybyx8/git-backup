@@ -12,8 +12,6 @@ services:
     restart: always
     volumes:
       - cert-volume:/app/certificate
-    networks:
-      - Superbridge
 volumes:
   cert-volume:
     external: true
