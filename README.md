@@ -2,32 +2,32 @@
 
 Add additional url to the database (x8_webhook)
 
-### Callback URL:
+### Callback URL :
 
-Add callback url to webhook(zort)
+Add callback url to webhook ZORT(รายการขาย)
 
-ADDORDER
+ADDORDER :
 
     {host}/order/add
 
-UPDATEORDER
+UPDATEORDER :
 
     {host}/order/update
 
-UPDATEORDERPAYMENT
+UPDATEORDERPAYMENT :
 
     {host}/order/update-payment
 
-UPDATEORDERTRACKING
+UPDATEORDERTRACKING :
 
     {host}/order/update-tracking
 
-DELETEORDER
+DELETEORDER :
 
     {host}/order/delete
 
-### Key Headers:
+### Key Headers :
 
-Key3
+key3 :
 
     {brand}:{key}
