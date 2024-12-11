@@ -52,8 +52,8 @@ const responseResultOrder = async (body, headers, query) => {
       await axios.post(trimmedUrl, {
         headers: headers,
         query: query,
-        data: body
-        // httpsAgent: new https.Agent({ rejectUnauthorized: false })
+        data: body,
+        httpsAgent: new https.Agent({ rejectUnauthorized: false })
       });
 
       const responsePush = trimmedUrl;
