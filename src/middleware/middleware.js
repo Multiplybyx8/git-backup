@@ -1,6 +1,14 @@
+const isEmpty = require("lodash.isempty");
+
 require("dotenv").config();
 
 const apiKeyMiddleware = (req, res, next) => {
+  if (isEmpty(req.headers["key3"])) {
+    const err = new Error("API key is missing or invalid");
+    err.status = 401;
+    return next(err);
+  }
+
   const result = extractKey(req.headers["key3"]);
 
   if (result !== process.env.API_KEY) {

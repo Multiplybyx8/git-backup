@@ -42,12 +42,11 @@ app.use((req, res, next) => {
   loggerApi.addContext("url", req.url);
   next();
 });
+app.get("/", (req, res) => res.render("successed.ejs"));
+app.get("/favicon.ico", (req, res) => res.sendStatus(204));
 
 app.use(apiKeyMiddleware);
 app.use("/order", orderRouter);
-
-app.get("/", (req, res) => res.render("successed.ejs"));
-app.get("/favicon.ico", (req, res) => res.sendStatus(204));
 
 app.use((req, res, next) => next(createError(404))); // 404 handler
 app.use((err, req, res, next) => {

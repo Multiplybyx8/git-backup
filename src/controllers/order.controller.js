@@ -14,17 +14,18 @@ const isEmpty = require("lodash.isempty");
 const handleRequest = async (req, res, modelMethod, textMessage, responseKey = "so-number", defaultResponse = {}) => {
   const { headers, body, query } = req;
 
-  console.log("req", req);
-
   try {
     const result = await modelMethod(body, headers, query);
+    const destination = isEmpty(result.status) ? "No destination link." : result.status;
 
     const response = {
       message: "success",
       api: textMessage,
       [responseKey]: result.number ?? defaultResponse,
-      destination: isEmpty(result.status) ? "No destination link." : result.status
+      destinations: destination
     };
+
+    console.log("Destination:", destination);
 
     res.status(200).json(response);
   } catch (error) {
