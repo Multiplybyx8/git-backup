@@ -1,5 +1,4 @@
 const isEmpty = require("lodash.isempty");
-
 require("dotenv").config();
 
 const apiKeyMiddleware = (req, res, next) => {
@@ -18,10 +17,9 @@ const apiKeyMiddleware = (req, res, next) => {
   }
 
   console.log("+-----------------------------------------------+");
-
   console.log(`Handling API Path: ${req.originalUrl}`);
-  // console.log(`Handling API Path: ${req.path}`);
   console.log("+-----------------------------------------------+");
+  // console.log(`Handling API Path: ${req.path}`);
   next();
 };
 

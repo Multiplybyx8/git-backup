@@ -14,9 +14,9 @@ function createConnectionPool(config) {
     ...config,
     waitForConnections: true,
     connectionLimit: 300,
-    queueLimit: 0, // No limit on queued connections
-    enableKeepAlive: true, // Enables keep-alive packets to be sent to the MySQL server
-    keepAliveInitialDelay: 10000 // Time (in ms) before the first keep-alive packet is sent
+    queueLimit: 0,
+    enableKeepAlive: true,
+    keepAliveInitialDelay: 10000
   });
 
   pool.on("error", function (err) {

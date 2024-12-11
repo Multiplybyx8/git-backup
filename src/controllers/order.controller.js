@@ -1,6 +1,6 @@
+const isEmpty = require("lodash.isempty");
 const orderModel = require("../models/order.model");
 const log = require("../middleware/logger");
-const isEmpty = require("lodash.isempty");
 
 /**
  * Handles API responses and logs errors.
