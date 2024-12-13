@@ -6,28 +6,18 @@ Add additional url to the database (x8_webhook)
 
 Add callback url to webhook ZORT(รายการขาย)
 
-ADDORDER :
+รายการขาย :
 
-    {host}/order/add
+    ADDORDER : {host}/order/add
 
-UPDATEORDER :
+    UPDATEORDER : {host}/order/update
 
-    {host}/order/update
+    UPDATEORDERPAYMENT : {host}/order/update-payment
 
-UPDATEORDERPAYMENT :
+    UPDATEORDERTRACKING :  {host}/order/update-tracking
 
-    {host}/order/update-payment
-
-UPDATEORDERTRACKING :
-
-    {host}/order/update-tracking
-
-DELETEORDER :
-
-    {host}/order/delete
+    DELETEORDER : {host}/order/delete
 
 ### Key Headers :
 
-key3 :
-
-    {brand}:{key}
+key3 : {brand}:{key}
