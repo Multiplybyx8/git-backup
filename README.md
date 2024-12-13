@@ -4,7 +4,7 @@ Add additional url to the database (x8_webhook)
 
 ### Callback URL :
 
-Add callback url to webhook ZORT(รายการขาย)
+Add callback url Webhook to ZORT
 
 รายการขาย :
 
@@ -18,6 +18,6 @@ Add callback url to webhook ZORT(รายการขาย)
 
     DELETEORDER : {host}/order/delete
 
-### Key Headers :
+### Request Headers :
 
-key3 : {brand}:{key}
+    key3 : {brand}:{key}
