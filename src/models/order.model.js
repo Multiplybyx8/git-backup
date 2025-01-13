@@ -28,7 +28,6 @@ const getUrl = (query) => {
     async (connection) => {
       const query = "SELECT url,type FROM web_links WHERE active = 1 AND type = ?";
       const [data] = await connection.query(query, queryMethod);
-
       return data.length > 0 ? { result: data } : null;
     }
     //, "manage"  -> name database(2)

@@ -4,7 +4,7 @@ Add additional url to the database (x8_webhook)
 
 ### Callback URL :
 
-Add callback url Webhook to ZORT
+Add callback url Webhook to ZORT.
 
 รายการขาย :
 
