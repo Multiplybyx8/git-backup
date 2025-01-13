@@ -25,8 +25,6 @@ const handleRequest = async (req, res, modelMethod, textMessage, responseKey = "
       destinations: destination
     };
 
-    console.log("Destination:", destination);
-
     res.status(200).json(response);
   } catch (error) {
     console.error(`Error in API ${textMessage}:`, error.message);

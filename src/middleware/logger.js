@@ -2,6 +2,8 @@ const log4js = require("log4js");
 const dateHelper = require("../helpers/dateHelper");
 const db = require("../services/connectionService");
 
+const { withDbConnection } = require("../services/withDbConnection");
+
 log4js.configure({
   appenders: {
     file: {
@@ -39,7 +41,7 @@ const loggerApi = log4js.getLogger("api");
  * @param {string} logType - The log type.
  */
 async function insertLog(req, res, message, logType) {
-  const connection = await db.getConnection();
+  const connection = await db.getWebhookConnection();
   try {
     const logData = createLogData(req, res, message, logType);
     logToConsole(logData);

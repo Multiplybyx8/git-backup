@@ -6,6 +6,11 @@ const { withDbConnection } = require("../services/withDbConnection");
 const orderModelBase = async (body, headers, query, processCallback) => {
   if (isEmpty(body)) return null;
 
+  // console.log("body", body);
+  // console.log("headers", headers);
+  // console.log("query", query);
+  // console.log("processCallback", processCallback);
+
   const resultOrder = await responseResultOrder(body, headers, query);
   const resultData = {
     number: processCallback ? processCallback(body) : body.number,
@@ -21,11 +26,14 @@ const updatePaymentOrderModel = (body, headers, query) => orderModelBase(body, h
 const updateTrackingOrderModel = (body, headers, query) => orderModelBase(body, headers, query, (body) => body.map((item) => item.trackingno));
 const deleteOrderModel = (body, headers, query) => orderModelBase(body, headers, query);
 
-const getUrl = () => {
+const getUrl = (query) => {
+  const resultMethod = query.method;
+  let queryMethod = resultMethod.toLowerCase();
   return withDbConnection(
     async (connection) => {
-      const query = "SELECT url FROM web_links WHERE active = 1";
-      const [data] = await connection.query(query);
+      const query = "SELECT url,type FROM web_links WHERE active = 1 AND type = ?";
+      const [data] = await connection.query(query, queryMethod);
+
       return data.length > 0 ? { result: data } : null;
     }
     //, "manage"  -> name database(2)
@@ -33,15 +41,24 @@ const getUrl = () => {
 };
 
 const responseResultOrder = async (body, headers, query) => {
-  const urlData = await getUrl();
+  const dataLog = {
+    headers: headers,
+    query: query,
+    data: body
+  };
+  console.log("data", dataLog);
+  const urlData = await getUrl(query);
+  console.log("url", urlData);
 
   if (isEmpty(urlData)) return null;
   const { result: urls } = urlData;
+
   const responses = [];
 
-  for (const { url } of urls) {
+  for (const path of urls) {
     try {
-      const trimmedUrl = url.trim();
+      const trimmedUrl = path.url.trim();
+
       await axios.post(trimmedUrl, {
         headers: headers,
         query: query,
@@ -50,6 +67,7 @@ const responseResultOrder = async (body, headers, query) => {
       });
 
       const responsePush = trimmedUrl;
+
       responses.push(responsePush);
     } catch (error) {
       console.error("Error:", error.response?.data?.message || error.message);
