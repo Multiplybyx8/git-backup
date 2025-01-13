@@ -6,11 +6,6 @@ const { withDbConnection } = require("../services/withDbConnection");
 const orderModelBase = async (body, headers, query, processCallback) => {
   if (isEmpty(body)) return null;
 
-  // console.log("body", body);
-  // console.log("headers", headers);
-  // console.log("query", query);
-  // console.log("processCallback", processCallback);
-
   const resultOrder = await responseResultOrder(body, headers, query);
   const resultData = {
     number: processCallback ? processCallback(body) : body.number,
