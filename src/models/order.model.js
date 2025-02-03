@@ -39,7 +39,7 @@ const getUrl = (query) => {
 const responseResultOrder = async (body, headers, query) => {
   const updatedHeaders = {
     ...headers,
-    Authorization: `Bearer ${headers.Authorization}`
+    Authorization: `${headers.authorization}`
   };
 
   // await axios.post(trimmedUrl, {
