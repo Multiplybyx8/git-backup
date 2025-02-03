@@ -37,12 +37,24 @@ const getUrl = (query) => {
 };
 
 const responseResultOrder = async (body, headers, query) => {
-  const dataLog = {
-    headers: headers,
-    query: query,
-    data: body
+  const updatedHeaders = {
+    ...headers,
+    Authorization: `Bearer ${headers.Authorization}`
   };
-  console.log("data query", dataLog.query);
+
+  // await axios.post(trimmedUrl, {
+  //   headers: updatedHeaders,
+  //   query: query,
+  //   data: body
+  // });
+
+  // const dataLog = {
+  //   headers: headers,
+  //   query: query,
+  //   data: body
+  // };
+  console.log("updatedHeaders:", updatedHeaders);
+
   const urlData = await getUrl(query);
   console.log("url", urlData);
 
@@ -55,8 +67,10 @@ const responseResultOrder = async (body, headers, query) => {
     try {
       const trimmedUrl = path.url.trim();
 
+      console.log("trimmedUrl:", trimmedUrl);
+
       await axios.post(trimmedUrl, {
-        headers: headers,
+        headers: updatedHeaders,
         query: query,
         data: body
         // httpsAgent: new https.Agent({ rejectUnauthorized: false })
@@ -67,7 +81,6 @@ const responseResultOrder = async (body, headers, query) => {
       responses.push(responsePush);
     } catch (error) {
       console.error("Error:", error.response?.data?.message || error.message);
-      console.error("Error ->:", error);
       throw error;
     }
   }

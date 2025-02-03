@@ -16,6 +16,7 @@ const handleRequest = async (req, res, modelMethod, textMessage, responseKey = "
 
   try {
     const result = await modelMethod(body, headers, query);
+
     const destination = isEmpty(result.status) ? "No destination link." : result.status;
 
     const response = {
