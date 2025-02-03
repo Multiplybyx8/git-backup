@@ -26,7 +26,7 @@ const getUrl = (query) => {
   let queryMethod = resultMethod.toLowerCase();
   return withDbConnection(
     async (connection) => {
-      const query = "SELECT url,type FROM web_links WHERE active = 1 AND type = ?";
+      const query = "SELECT url,type,projects FROM web_links WHERE active = 1 AND type = ?";
       const [data] = await connection.query(query, queryMethod);
       return data.length > 0 ? { result: data } : null;
     }
@@ -40,7 +40,7 @@ const responseResultOrder = async (body, headers, query) => {
     query: query,
     data: body
   };
-  console.log("data", dataLog);
+  console.log("data query", dataLog.query);
   const urlData = await getUrl(query);
   console.log("url", urlData);
 
