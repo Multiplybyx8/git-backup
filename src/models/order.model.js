@@ -48,7 +48,7 @@ const responseResultOrder = async (body, headers, query) => {
   //   query: query,
   //   data: body
   // };
-
+  console.log("Headers:", headers);
   const urlData = await getUrl(query);
   console.log("url", urlData);
 
