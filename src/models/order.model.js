@@ -4,6 +4,8 @@ const isEmpty = require("lodash.isempty");
 const { withDbConnection } = require("../services/withDbConnection");
 
 const orderModelBase = async (body, headers, query, processCallback) => {
+  console.log("headers->>", headers);
+
   if (isEmpty(body)) return null;
 
   const resultOrder = await responseResultOrder(body, headers, query);
@@ -24,7 +26,6 @@ const deleteOrderModel = (body, headers, query) => orderModelBase(body, headers,
 const getUrl = (query) => {
   const resultMethod = query.method;
   let queryMethod = resultMethod.toUpperCase();
-  console.log("queryMethod", queryMethod);
 
   return withDbConnection(
     async (connection) => {
@@ -43,14 +44,15 @@ const responseResultOrder = async (body, headers, query) => {
   //   data: body
   // });
 
-  // const dataLog = {
-  //   headers: headers,
-  //   query: query,
-  //   data: body
-  // };
-  console.log("Headers:", headers);
+  const dataLog = {
+    headers: headers,
+    query: query,
+    data: body
+  };
+
+  console.log("dataLog->>", dataLog);
+
   const urlData = await getUrl(query);
-  console.log("url", urlData);
 
   if (isEmpty(urlData)) return null;
   const { result: urls } = urlData;
@@ -61,15 +63,8 @@ const responseResultOrder = async (body, headers, query) => {
     try {
       const trimmedUrl = path.url.trim();
 
-      console.log("Calling URL:", trimmedUrl);
-      console.log("Headers:", headers);
-      console.log("Authorization:", headers.authorization);
-
       await axios.post(trimmedUrl, {
-        headers: {
-          ...headers, // คัดลอก headers เดิม
-          Authorization: `${headers.authorization}` // ใช้ API_TOKEN หรือค่าจาก headers เดิม
-        },
+        headers: headers,
         query: query,
         data: body
         // httpsAgent: new https.Agent({ rejectUnauthorized: false })

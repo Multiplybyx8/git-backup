@@ -4,7 +4,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: x8-webhook:1.0.11
+    image: x8-webhook:1.0.12
     env_file:
       - stack.env
     ports:
