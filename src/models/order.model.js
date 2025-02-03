@@ -48,7 +48,6 @@ const responseResultOrder = async (body, headers, query) => {
   //   query: query,
   //   data: body
   // };
-  console.log("updatedHeaders:", updatedHeaders);
 
   const urlData = await getUrl(query);
   console.log("url", urlData);
@@ -62,7 +61,9 @@ const responseResultOrder = async (body, headers, query) => {
     try {
       const trimmedUrl = path.url.trim();
 
-      console.log("headers.authorization:", headers.authorization);
+      console.log("Calling URL:", trimmedUrl);
+      console.log("Headers:", headers);
+      console.log("Authorization:", headers.authorization);
 
       await axios.post(trimmedUrl, {
         headers: {
