@@ -37,11 +37,6 @@ const getUrl = (query) => {
 };
 
 const responseResultOrder = async (body, headers, query) => {
-  const updatedHeaders = {
-    ...headers,
-    Authorization: `${headers.authorization}`
-  };
-
   // await axios.post(trimmedUrl, {
   //   headers: updatedHeaders,
   //   query: query,
@@ -67,11 +62,13 @@ const responseResultOrder = async (body, headers, query) => {
     try {
       const trimmedUrl = path.url.trim();
 
-      console.log("trimmedUrl:", trimmedUrl);
+      console.log("headers.authorization:", headers.authorization);
 
       await axios.post(trimmedUrl, {
-        headers: headers,
-        Authorization: `${headers.authorization}`,
+        headers: {
+          ...headers, // คัดลอก headers เดิม
+          Authorization: `${headers.authorization}` // ใช้ API_TOKEN หรือค่าจาก headers เดิม
+        },
         query: query,
         data: body
         // httpsAgent: new https.Agent({ rejectUnauthorized: false })
