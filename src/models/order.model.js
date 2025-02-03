@@ -23,7 +23,9 @@ const deleteOrderModel = (body, headers, query) => orderModelBase(body, headers,
 
 const getUrl = (query) => {
   const resultMethod = query.method;
-  let queryMethod = resultMethod.toLowerCase();
+  let queryMethod = resultMethod.toUpperCase();
+  console.log("queryMethod", queryMethod);
+
   return withDbConnection(
     async (connection) => {
       const query = "SELECT url,type,projects FROM web_links WHERE active = 1 AND type = ?";
@@ -65,6 +67,7 @@ const responseResultOrder = async (body, headers, query) => {
       responses.push(responsePush);
     } catch (error) {
       console.error("Error:", error.response?.data?.message || error.message);
+      console.error("Error ->:", error);
       throw error;
     }
   }
