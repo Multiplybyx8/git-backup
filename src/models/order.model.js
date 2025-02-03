@@ -63,11 +63,18 @@ const responseResultOrder = async (body, headers, query) => {
     try {
       const trimmedUrl = path.url.trim();
 
-      console.log("headers.authorization -> ", headers.authorization);
+      const heradersAuth = headers.authorization;
+      const resultAuth = heradersAuth.replace("Basic ", "");
+
+      const headersAsios = {
+        ...headers,
+        Authorization: `Basic ${resultAuth}`
+      };
+
+      console.log("headersAsios->>", headersAsios);
 
       await axios.post(trimmedUrl, {
-        headers,
-        headers: headers,
+        headers: headersAsios,
         query: query,
         data: body
         // httpsAgent: new https.Agent({ rejectUnauthorized: false })
