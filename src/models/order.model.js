@@ -63,7 +63,10 @@ const responseResultOrder = async (body, headers, query) => {
     try {
       const trimmedUrl = path.url.trim();
 
+      console.log("headers.authorization -> ", headers.authorization);
+
       await axios.post(trimmedUrl, {
+        authorization: headers.authorization,
         headers: headers,
         query: query,
         data: body
