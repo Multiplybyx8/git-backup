@@ -50,16 +50,24 @@ const responseResultOrder = async (body, headers, query) => {
 
   for (const path of urls) {
     try {
+      const project = path?.projects;
+      const key3 = query?.key3;
+      key3 = key3.split(":")[0];
+
       const trimmedUrl = path.url.trim();
 
-      await axios.post(trimmedUrl, body, {
-        headers: {
-          Authorization: headersAuth,
-          "Content-Type": "application/json"
-        },
-        query: query,
-        data: body
-      });
+      if (project == "GeminiFourth" && key3 !== "pas") {
+        console.log("GeminiFourth not Brand Pastel creative");
+      } else {
+        await axios.post(trimmedUrl, body, {
+          headers: {
+            Authorization: headersAuth,
+            "Content-Type": "application/json"
+          },
+          query: query,
+          data: body
+        });
+      }
 
       const responsePush = trimmedUrl;
 
