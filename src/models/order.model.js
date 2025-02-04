@@ -51,8 +51,9 @@ const responseResultOrder = async (body, headers, query) => {
   for (const path of urls) {
     try {
       const project = path?.projects;
-      const key3 = query?.key3;
+      let key3 = query?.key3;
       key3 = key3.split(":")[0];
+      console.log("split key3", key3);
 
       const trimmedUrl = path.url.trim();
 
