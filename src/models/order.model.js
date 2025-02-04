@@ -4,8 +4,6 @@ const isEmpty = require("lodash.isempty");
 const { withDbConnection } = require("../services/withDbConnection");
 
 const orderModelBase = async (body, headers, query, processCallback) => {
-  console.log("headers->>", headers);
-
   if (isEmpty(body)) return null;
 
   const resultOrder = await responseResultOrder(body, headers, query);
@@ -25,7 +23,7 @@ const deleteOrderModel = (body, headers, query) => orderModelBase(body, headers,
 
 const getUrl = (query) => {
   const resultMethod = query.method;
-  let queryMethod = resultMethod.toUpperCase();
+  let queryMethod = resultMethod?.toUpperCase();
 
   return withDbConnection(
     async (connection) => {
@@ -38,20 +36,9 @@ const getUrl = (query) => {
 };
 
 const responseResultOrder = async (body, headers, query) => {
-  // await axios.post(trimmedUrl, {
-  //   headers: updatedHeaders,
-  //   query: query,
-  //   data: body
-  // });
+  console.log("query", query);
 
-  const dataLog = {
-    headers: headers,
-    query: query,
-    data: body
-  };
-
-  console.log("dataLog->>", dataLog);
-
+  const headersAuth = headers?.authorization || "";
   const urlData = await getUrl(query);
 
   if (isEmpty(urlData)) return null;
@@ -63,21 +50,13 @@ const responseResultOrder = async (body, headers, query) => {
     try {
       const trimmedUrl = path.url.trim();
 
-      const heradersAuth = headers.authorization;
-      const resultAuth = heradersAuth.replace("Basic ", "");
-
-      const headersAsios = {
-        ...headers,
-        Authorization: `Basic ${resultAuth}`
-      };
-
-      console.log("headersAsios->>", headersAsios);
-
-      await axios.post(trimmedUrl, {
-        headers: headersAsios,
+      await axios.post(trimmedUrl, body, {
+        headers: {
+          Authorization: headersAuth,
+          "Content-Type": "application/json"
+        },
         query: query,
         data: body
-        // httpsAgent: new https.Agent({ rejectUnauthorized: false })
       });
 
       const responsePush = trimmedUrl;
