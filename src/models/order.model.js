@@ -44,6 +44,8 @@ const responseResultOrder = async (body, headers, query) => {
   if (isEmpty(urlData)) return null;
   const { result: urls } = urlData;
 
+  console.log("urls", urls);
+
   const responses = [];
 
   for (const path of urls) {
