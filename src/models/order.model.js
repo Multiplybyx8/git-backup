@@ -28,7 +28,7 @@ const getUrl = (query) => {
   return withDbConnection(
     async (connection) => {
       const query = "SELECT url,type,projects FROM web_links WHERE active = 1 AND type = ?";
-      const [data] = await connection.query(query, queryMethod);
+      const [data] = await connection.query(query, [queryMethod]);
       return data.length > 0 ? { result: data } : null;
     }
     //, "manage"  -> name database(2)
@@ -41,10 +41,10 @@ const responseResultOrder = async (body, headers, query) => {
   const headersAuth = headers?.authorization || "";
   const urlData = await getUrl(query);
 
+  console.log("urlData", urlData);
+
   if (isEmpty(urlData)) return null;
   const { result: urls } = urlData;
-
-  console.log("urls", urls);
 
   const responses = [];
 
