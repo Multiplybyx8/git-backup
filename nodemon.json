@@ -1,0 +1,10 @@
+{
+  "watch": ["src"],
+  "ext": "js",
+  "ignore": [
+    "src/**/*.spec.js",
+    "src/temp_repos/*",
+    "src/services/CronJob.js"
+  ],
+  "exec": "node app.js"
+}

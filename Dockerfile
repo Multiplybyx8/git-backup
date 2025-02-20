@@ -12,7 +12,7 @@ COPY . .
 RUN apk --no-cache add tzdata && \
   ln -sf /usr/share/zoneinfo/Asia/Bangkok /etc/localtime
 
-EXPOSE 33809
+EXPOSE 33322
 
 CMD ["node", "app.js"]
 

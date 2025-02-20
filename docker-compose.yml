@@ -4,14 +4,15 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: x8-webhook:1.0.0
+    image: git-backup:1.0.0
     env_file:
       - stack.env
     ports:
-      - '33809:33809'
+      - '33322:33322'
     restart: always
+    network_mode: bridge
     volumes:
-      - cert-volume:/app/certificate
+      - certs:/app/certificate
 volumes:
-  cert-volume:
+  certs:
     external: true

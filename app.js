@@ -7,13 +7,13 @@ const cookieParser = require("cookie-parser");
 const cors = require("cors");
 const dotenv = require("dotenv");
 const { api: loggerApi } = require("./src/middleware/logger");
-const orderRouter = require("./src/routes/order.routes");
+const gitRouter = require("./src/routes/git.routes");
 const { apiKeyMiddleware } = require("./src/middleware/middleware");
 
 dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 33809;
+const PORT = process.env.PORT || 33322;
 
 const serverOptions = {
   key: fs.readFileSync(process.env.CERT_KEY),
@@ -45,8 +45,8 @@ app.use((req, res, next) => {
 app.get("/", (req, res) => res.render("successed.ejs"));
 app.get("/favicon.ico", (req, res) => res.sendStatus(204));
 
-app.use(apiKeyMiddleware);
-app.use("/order", orderRouter);
+// app.use(apiKeyMiddleware);
+app.use("/api", gitRouter);
 
 app.use((req, res, next) => next(createError(404))); // 404 handler
 app.use((err, req, res, next) => {

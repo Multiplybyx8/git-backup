@@ -1,5 +1,5 @@
 {
-  "name": "x8-webhook",
+  "name": "git-backup",
   "version": "1.0.0",
   "private": true,
   "scripts": {
@@ -7,6 +7,7 @@
     "dev": "nodemon app.js"
   },
   "dependencies": {
+    "@line/bot-sdk": "^9.7.1",
     "axios": "^1.6.8",
     "cookie-parser": "~1.4.4",
     "cors": "^2.8.5",
@@ -14,6 +15,7 @@
     "dotenv": "^16.3.1",
     "ejs": "^3.1.9",
     "express": "^4.18.2",
+    "googleapis": "^144.0.0",
     "html-entities": "^2.5.2",
     "http-errors": "~1.6.3",
     "jsonwebtoken": "^9.0.2",
@@ -27,4 +29,5 @@
   "devDependencies": {
     "nodemon": "^3.0.1"
   }
+  
 }
