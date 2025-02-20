@@ -1,8 +1,7 @@
-# ติดตั้ง git
 FROM node:20-alpine
 
-# ติดตั้ง git และ tzdata
-RUN apk add --no-cache git tzdata
+# ติดตั้ง git, tzdata และ zip
+RUN apk add --no-cache git tzdata zip
 
 # ตั้งค่า timezone เป็น UTC+7
 RUN ln -sf /usr/share/zoneinfo/Asia/Bangkok /etc/localtime
@@ -23,4 +22,4 @@ COPY . .
 EXPOSE 33322
 
 # รันแอปพลิเคชัน
-CMD ["node", "app.js"]
+CMD ["node", "app.js"]  # หรือใช้ path ที่ถูกต้อง
