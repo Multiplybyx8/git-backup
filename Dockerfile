@@ -2,7 +2,7 @@
 FROM node:20-alpine
 
 # ติดตั้ง git และ tzdata
-RUN apk add --no-cache git tzdata zip
+RUN apk add --no-cache git tzdata
 
 # ตั้งค่า timezone เป็น UTC+7
 RUN ln -sf /usr/share/zoneinfo/Asia/Bangkok /etc/localtime
