@@ -15,11 +15,12 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 33322;
 
-const serverOptions = {
-  key: fs.readFileSync(process.env.CERT_KEY),
-  cert: fs.readFileSync(process.env.CERT_CERT)
-};
-const server = require(process.env.HTTP_PROTOCOL).createServer(serverOptions, app);
+// const serverOptions = {
+//   key: fs.readFileSync(process.env.CERT_KEY),
+//   cert: fs.readFileSync(process.env.CERT_CERT)
+// };
+// const server = require(process.env.HTTP_PROTOCOL).createServer(serverOptions, app);
+const server = require(process.env.HTTP_PROTOCOL).createServer(app);
 
 app.use(
   cors({
