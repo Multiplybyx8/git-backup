@@ -10,12 +10,27 @@ const { google } = require("googleapis");
 
 dotenv.config();
 
-const KEY_FILE_PATH = process.env.KEY_FILE_PATH;
+// const KEY_FILE_PATH = process.env.KEY_FILE_PATH;
+const credentials = {
+  type: process.env.GG_type,
+  project_id: process.env.GG_project_id,
+  private_key_id: process.env.GG_private_key_id,
+  private_key: process.env.GG_private_key,
+  client_email: process.env.GG_client_email,
+  client_id: process.env.GG_client_id,
+  auth_uri: process.env.GG_auth_uri,
+  token_uri: process.env.GG_token_uri,
+  auth_provider_x509_cert_url: process.env.GG_auth_provider_x509_cert_url,
+  client_x509_cert_url: process.env.GG_client_x509_cert_url,
+  universe_domain: process.env.GG_universe_domain
+};
+
 const PARENT_FOLDER_ID = process.env.PARENT_FOLDER_ID;
 const auth = new google.auth.GoogleAuth({
-  keyFile: KEY_FILE_PATH,
+  credentials,
   scopes: ["https://www.googleapis.com/auth/drive.file"]
 });
+
 const drive = google.drive({ version: "v3", auth });
 
 const TEMP_FOLDER = path.join(__dirname, "../temp_repos");
@@ -26,7 +41,7 @@ const GetBackupManual = async (owner, GITHUB_TOKEN, GITHUB_API_VERSION) => {
   const responText = "❌ No Repository to clone!";
 
   if (repositories.length === 0) {
-    // await sendLineMessage(responText);
+    await sendLineMessage(responText);
     return console.log(responText);
   }
 
