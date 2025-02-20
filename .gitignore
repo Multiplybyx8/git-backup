@@ -130,3 +130,5 @@ dist
 .pnp.*
 package-lock.json
 temp_repos
+service-account.json
+service-account_2.json
