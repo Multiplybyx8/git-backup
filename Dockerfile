@@ -22,4 +22,4 @@ COPY . .
 EXPOSE 33322
 
 # รันแอปพลิเคชัน
-CMD ["node", "app.js"]  # หรือใช้ path ที่ถูกต้อง
+CMD ["node", "app.js"]
