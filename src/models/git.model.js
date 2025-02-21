@@ -7,6 +7,7 @@ const dotenv = require("dotenv");
 const path = require("path");
 const fs = require("fs");
 const { google } = require("googleapis");
+const cron = require("node-cron");
 
 dotenv.config();
 
@@ -287,6 +288,24 @@ const sendLineMessage = async (text) => {
     console.error("❌ ส่งข้อความผ่าน LINE Messaging API ไม่สำเร็จ:", error.message);
   }
 };
+
+cron.schedule(
+  process.env.CRON_SUHEDULE,
+  // "*/5 * * * *",
+  async () => {
+    console.log("Running cron job...");
+
+    try {
+      await GetBackupManual(process.env.GIT_OWNER, process.env.GIT_TOKEN, process.env.GIT_VERSION);
+    } catch (error) {
+      console.error("Error running cron job:", error);
+    }
+  },
+  {
+    scheduled: true,
+    timezone: "Asia/Bangkok"
+  }
+);
 
 module.exports = {
   GetBackupManual

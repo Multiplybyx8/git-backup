@@ -13,7 +13,7 @@ const { apiKeyMiddleware } = require("./src/middleware/middleware");
 dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 33322;
+const PORT = process.env.PORT || 33776;
 
 // const serverOptions = {
 //   key: fs.readFileSync(process.env.CERT_KEY),

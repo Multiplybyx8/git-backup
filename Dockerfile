@@ -19,7 +19,7 @@ RUN npm install
 COPY . .
 
 # เปิดพอร์ตที่ต้องการ
-EXPOSE 33322
+EXPOSE 33776
 
 # รันแอปพลิเคชัน
 CMD ["node", "app.js"]

@@ -24,10 +24,10 @@
     "log4js": "^6.9.1",
     "moment": "^2.29.4",
     "moment-timezone": "^0.5.43",
-    "mysql2": "^3.11.5"
+    "mysql2": "^3.11.5",
+    "node-cron": "^3.0.3"
   },
   "devDependencies": {
     "nodemon": "^3.0.1"
   }
-  
 }

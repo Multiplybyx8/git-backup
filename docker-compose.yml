@@ -4,11 +4,11 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: git-backup:1.0.7
+    image: git-backup:1.0.8
     env_file:
       - stack.env
     ports:
-      - '33322:33322'
+      - '33776:33776'
     restart: always
     network_mode: bridge
     volumes:
