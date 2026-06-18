@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "start": "node app.js",
-    "dev": "nodemon app.js"
+    "dev": "nodemon"
   },
   "dependencies": {
     "@line/bot-sdk": "^9.7.1",

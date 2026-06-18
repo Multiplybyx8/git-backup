@@ -1,8 +1,7 @@
+// DB connection is used for insertLog only — not part of the git backup flow.
 const log4js = require("log4js");
 const dateHelper = require("../helpers/dateHelper");
 const db = require("../services/connectionService");
-
-const { withDbConnection } = require("../services/withDbConnection");
 
 log4js.configure({
   appenders: {

@@ -8,6 +8,7 @@ const cors = require("cors");
 const dotenv = require("dotenv");
 const { api: loggerApi } = require("./src/middleware/logger");
 const gitRouter = require("./src/routes/git.routes");
+const dashboardRouter = require("./src/routes/dashboard.routes");
 const { apiKeyMiddleware } = require("./src/middleware/middleware");
 
 dotenv.config();
@@ -48,6 +49,7 @@ app.get("/favicon.ico", (req, res) => res.sendStatus(204));
 
 // app.use(apiKeyMiddleware);
 app.use("/api", gitRouter);
+app.use("/dashboard", dashboardRouter);
 
 app.use((req, res, next) => next(createError(404))); // 404 handler
 app.use((err, req, res, next) => {

@@ -6,59 +6,216 @@ const { Client } = require("@line/bot-sdk");
 const dotenv = require("dotenv");
 const path = require("path");
 const fs = require("fs");
-const { google } = require("googleapis");
 const cron = require("node-cron");
+const backupJobState = require("../services/backupJobState");
+const driveConfig = require("../services/driveConfig");
 
 dotenv.config();
-
-// const KEY_FILE_PATH = process.env.KEY_FILE_PATH;
-const credentials = {
-  type: process.env.GG_type,
-  project_id: process.env.GG_project_id,
-  private_key_id: process.env.GG_private_key_id,
-  private_key: process.env.GG_private_key,
-  client_email: process.env.GG_client_email,
-  client_id: process.env.GG_client_id,
-  auth_uri: process.env.GG_auth_uri,
-  token_uri: process.env.GG_token_uri,
-  auth_provider_x509_cert_url: process.env.GG_auth_provider_x509_cert_url,
-  client_x509_cert_url: process.env.GG_client_x509_cert_url,
-  universe_domain: process.env.GG_universe_domain
-};
-
-const PARENT_FOLDER_ID = process.env.PARENT_FOLDER_ID;
-const auth = new google.auth.GoogleAuth({
-  credentials,
-  scopes: ["https://www.googleapis.com/auth/drive.file"]
-});
-
-const drive = google.drive({ version: "v3", auth });
 
 const TEMP_FOLDER = path.join(__dirname, "../temp_repos");
 if (!fs.existsSync(TEMP_FOLDER)) fs.mkdirSync(TEMP_FOLDER, { recursive: true });
 
-const GetBackupManual = async (owner, GITHUB_TOKEN, GITHUB_API_VERSION) => {
-  const repositories = await getRepositories(owner, GITHUB_TOKEN, GITHUB_API_VERSION);
+const isRepoInFilter = (pushedAt, filter) => {
+  const pushed = new Date(pushedAt);
+
+  if (filter.mode === "range") {
+    const from = new Date(filter.dateFrom);
+    from.setHours(0, 0, 0, 0);
+    const to = new Date(filter.dateTo);
+    to.setHours(23, 59, 59, 999);
+    return pushed >= from && pushed <= to;
+  }
+
+  const since = new Date();
+  since.setDate(since.getDate() - filter.days);
+  since.setHours(0, 0, 0, 0);
+  return pushed >= since;
+};
+
+const buildDateFilter = (options = {}) => {
+  if (options.mode === "range") {
+    return {
+      mode: "range",
+      dateFrom: options.dateFrom,
+      dateTo: options.dateTo
+    };
+  }
+
+  return {
+    mode: "days",
+    days: parseInt(options.days ?? process.env.DAYS, 10)
+  };
+};
+
+const runBackupForRepos = async (owner, repositories, GITHUB_TOKEN, options = {}) => {
+  const {
+    includeNormal = true,
+    includeMirror = true,
+    notifyEmpty = true,
+    driveAccount = driveConfig.DEFAULT_DRIVE_ACCOUNT
+  } = options;
+  const driveAccountKey = driveConfig.resolveDriveAccount(driveAccount);
+  const driveAccountLabel = driveConfig.getDriveAccountLabel(driveAccountKey);
   const responText = "❌ No Repository to clone!";
 
   if (repositories.length === 0) {
-    await sendLineMessage(responText);
-    return console.log(responText);
+    if (notifyEmpty) await sendLineMessage(responText);
+    console.log(responText);
+    return {
+      owner,
+      total: 0,
+      processed: [],
+      skipped: [],
+      message: responText
+    };
   }
 
+  const processed = [];
+  const skipped = [];
+
   for (const repo of repositories) {
-    const { cloneUrl, pushedAt } = repo;
+    const { cloneUrl, pushedAt, name } = repo;
+    const repoName = name || cloneUrl.split("/").pop()?.replace(".git", "") || "unknown";
+    backupJobState.setCurrentRepo(repoName);
 
     const { normalPath, mirrorPath } = await cloneRepo(cloneUrl, pushedAt, GITHUB_TOKEN);
-    if (!normalPath && !mirrorPath) continue; // ข้ามถ้าโคลนไม่สำเร็จ
-    if (normalPath) await processAndUpload(normalPath, "Normal");
-    if (mirrorPath) await processAndUpload(mirrorPath, "Mirror");
+    if (!normalPath && !mirrorPath) {
+      skipped.push({ repo: repoName, reason: "clone failed" });
+      continue;
+    }
+
+    const repoResult = { repo: repoName, normal: false, mirror: false };
+    if (includeNormal && normalPath) {
+      await processAndUpload(normalPath, "Normal", driveAccountKey);
+      repoResult.normal = true;
+    }
+    if (includeMirror && mirrorPath) {
+      await processAndUpload(mirrorPath, "Mirror", driveAccountKey);
+      repoResult.mirror = true;
+    }
+    processed.push(repoResult);
+  }
+
+  const message = `Backup completed: ${processed.length} processed, ${skipped.length} skipped → ${driveAccountLabel}`;
+  console.log(message);
+
+  return {
+    owner,
+    driveAccount: driveAccountKey,
+    driveAccountLabel,
+    total: repositories.length,
+    processed,
+    skipped,
+    message
+  };
+};
+
+const GetBackupManual = async (owner, GITHUB_TOKEN, GITHUB_API_VERSION, options = {}) => {
+  if (!backupJobState.acquireBackupLock("manual")) {
+    return {
+      owner,
+      total: 0,
+      processed: [],
+      skipped: [],
+      message: "Backup job is already running",
+      running: true
+    };
+  }
+
+  try {
+    const filter = buildDateFilter({ mode: "days" });
+    const repositories = await getRepositories(owner, GITHUB_TOKEN, GITHUB_API_VERSION, filter);
+    const result = await runBackupForRepos(owner, repositories, GITHUB_TOKEN, options);
+    backupJobState.releaseBackupLock(result);
+    return result;
+  } catch (error) {
+    backupJobState.releaseBackupLock();
+    throw error;
   }
 };
 
-const processAndUpload = async (repoPath, type) => {
-  const repoName = path.basename(repoPath); // Get folder name, e.g., "webhook-mirror"
-  const repoYearMonthDayPath = path.dirname(repoPath); // Get repo path, e.g., "temp_repos/2024/02/05"
+const PreviewRepositories = async (owner, GITHUB_TOKEN, GITHUB_API_VERSION, filterOptions) => {
+  const filter = buildDateFilter(filterOptions);
+  const repositories = await getRepositories(owner, GITHUB_TOKEN, GITHUB_API_VERSION, filter);
+
+  return {
+    owner,
+    filter,
+    total: repositories.length,
+    repositories: repositories.map((repo) => ({
+      name: repo.name,
+      pushedAt: repo.pushedAt
+    }))
+  };
+};
+
+const GetBackupByDateRange = async (owner, GITHUB_TOKEN, GITHUB_API_VERSION, dateFrom, dateTo, options = {}) => {
+  if (!backupJobState.acquireBackupLock("range")) {
+    return {
+      owner,
+      total: 0,
+      processed: [],
+      skipped: [],
+      message: "Backup job is already running",
+      running: true
+    };
+  }
+
+  try {
+    const filter = buildDateFilter({ mode: "range", dateFrom, dateTo });
+    const repositories = await getRepositories(owner, GITHUB_TOKEN, GITHUB_API_VERSION, filter);
+    const result = await runBackupForRepos(owner, repositories, GITHUB_TOKEN, options);
+    backupJobState.releaseBackupLock(result);
+    return result;
+  } catch (error) {
+    backupJobState.releaseBackupLock();
+    throw error;
+  }
+};
+
+const startBackupNow = (owner, GITHUB_TOKEN, GITHUB_API_VERSION, options = {}) => {
+  if (!backupJobState.acquireBackupLock("manual")) {
+    return { started: false, message: "Backup job is already running" };
+  }
+
+  setImmediate(async () => {
+    try {
+      const filter = buildDateFilter({ mode: "days" });
+      const repositories = await getRepositories(owner, GITHUB_TOKEN, GITHUB_API_VERSION, filter);
+      const result = await runBackupForRepos(owner, repositories, GITHUB_TOKEN, options);
+      backupJobState.releaseBackupLock(result);
+    } catch (error) {
+      console.error("Background backup (now) failed:", error);
+      backupJobState.releaseBackupLock();
+    }
+  });
+
+  return { started: true, message: "Backup started" };
+};
+
+const startBackupByDateRange = (owner, GITHUB_TOKEN, GITHUB_API_VERSION, dateFrom, dateTo, options = {}) => {
+  if (!backupJobState.acquireBackupLock("range")) {
+    return { started: false, message: "Backup job is already running" };
+  }
+
+  setImmediate(async () => {
+    try {
+      const filter = buildDateFilter({ mode: "range", dateFrom, dateTo });
+      const repositories = await getRepositories(owner, GITHUB_TOKEN, GITHUB_API_VERSION, filter);
+      const result = await runBackupForRepos(owner, repositories, GITHUB_TOKEN, options);
+      backupJobState.releaseBackupLock(result);
+    } catch (error) {
+      console.error("Background backup (range) failed:", error);
+      backupJobState.releaseBackupLock();
+    }
+  });
+
+  return { started: true, message: "Backup started" };
+};
+
+const processAndUpload = async (repoPath, type, driveAccount) => {
+  const repoName = path.basename(repoPath);
+  const repoYearMonthDayPath = path.dirname(repoPath);
 
   const { year, month, day, dateSuffix } = await extractDateParts(repoYearMonthDayPath);
   const zipFileName = `${repoName}-${dateSuffix}.zip`;
@@ -67,38 +224,45 @@ const processAndUpload = async (repoPath, type) => {
   console.log(`📦 Compressing (${type}): ${zipFileName}`);
   await createZip(repoYearMonthDayPath, repoName, zipPath);
 
-  // Upload to Google Drive, organize by year/month/day
-  await uploadToGoogleDrive(zipPath, zipFileName, year, month, day);
+  await uploadToGoogleDrive(zipPath, zipFileName, year, month, day, driveAccount);
 
-  // Cleanup: delete files after upload
   await cleanupFiles(repoPath, zipPath);
 };
 
-const getRepositories = async (owner, GITHUB_TOKEN, GITHUB_API_VERSION) => {
-  let repos = [];
+const getRepositories = async (owner, GITHUB_TOKEN, GITHUB_API_VERSION, filterOptions = {}) => {
+  const perPage = 100;
   let page = 1;
-  const perPage = 1000;
-  const sevenDaysAgo = new Date();
-  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - parseInt(process.env.DAYS));
-  console.log("The repository update period:", sevenDaysAgo);
+  const repos = [];
+  const filter = buildDateFilter(filterOptions);
+  console.log("Repository filter:", filter);
 
   try {
-    const response = await axios.get(`https://api.github.com/user/repos`, {
-      headers: {
-        Authorization: `Bearer ${GITHUB_TOKEN}`,
-        "X-GitHub-Api-Version": GITHUB_API_VERSION
-      },
-      params: { per_page: perPage, page: page }
-    });
+    while (true) {
+      const response = await axios.get(`https://api.github.com/user/repos`, {
+        headers: {
+          Authorization: `Bearer ${GITHUB_TOKEN}`,
+          "X-GitHub-Api-Version": GITHUB_API_VERSION
+        },
+        params: { per_page: perPage, page }
+      });
 
-    // const ssh_data = response.data.map((repo) => console.log(repo));
+      if (!Array.isArray(response.data) || response.data.length === 0) break;
 
-    return response.data
-      .filter((repo) => new Date(repo.pushed_at) >= sevenDaysAgo)
-      .map((repo) => ({
-        cloneUrl: repo.clone_url,
-        pushedAt: repo.pushed_at
-      }));
+      repos.push(
+        ...response.data
+          .filter((repo) => isRepoInFilter(repo.pushed_at, filter))
+          .map((repo) => ({
+            name: repo.name,
+            cloneUrl: repo.clone_url,
+            pushedAt: repo.pushed_at
+          }))
+      );
+
+      if (response.data.length < perPage) break;
+      page++;
+    }
+
+    return repos;
   } catch (error) {
     console.error("❌ Unable to fetch repos:", error.message);
     return [];
@@ -163,7 +327,6 @@ const cloneRepoType = async (repoUrl, baseFolder, repoName, isMirror, GITHUB_TOK
       }
     } else {
       const cloneCommand = isMirror ? `git clone --mirror ${repoUrl_new} "${repoPath}"` : `git clone ${repoUrl_new} "${repoPath}"`;
-      console.log("cloneCommand>>>>>>>>", cloneCommand);
 
       console.log(`🚀 Cloning ${isMirror ? "Mirror" : "Normal"} -> ${repoName}`);
       try {
@@ -172,7 +335,7 @@ const cloneRepoType = async (repoUrl, baseFolder, repoName, isMirror, GITHUB_TOK
         // ถ้าเกิดข้อผิดพลาดให้ลอง clone ใหม่โดยใช้ repoUrl
         console.error(`❌ Clone failed for ${repoName}. Retrying with original URL...`);
         const cloneCommand_clone = isMirror ? `git clone --mirror ${repoUrl} "${repoPath}"` : `git clone ${repoUrl} "${repoPath}"`;
-        console.log("Retrying clone command>>>>>>>>", cloneCommand);
+        console.log(`🔄 Retrying clone ${isMirror ? "Mirror" : "Normal"} -> ${repoName}`);
 
         try {
           execSync(cloneCommand_clone, { stdio: "inherit" });
@@ -202,7 +365,7 @@ const cleanupFiles = async (repoPath, zipPath) => {
   console.log(`🗑️ Cleaned up: ${repoPath} and ${zipPath}`);
 };
 
-const getOrCreateFolder = async (name, parentId = PARENT_FOLDER_ID) => {
+const getOrCreateFolder = async (name, parentId, drive) => {
   try {
     const query = `'${parentId}' in parents and name='${name}' and mimeType='application/vnd.google-apps.folder' and trashed=false`;
     const res = await drive.files.list({
@@ -230,11 +393,13 @@ const getOrCreateFolder = async (name, parentId = PARENT_FOLDER_ID) => {
   }
 };
 
-const uploadToGoogleDrive = async (filePath, fileName, year, month, day) => {
+const uploadToGoogleDrive = async (filePath, fileName, year, month, day, driveAccount) => {
+  const driveContext = driveConfig.getDriveClient(driveAccount);
+
   try {
-    const yearFolderId = await getOrCreateFolder(year);
-    const monthFolderId = await getOrCreateFolder(month, yearFolderId);
-    const dayFolderId = await getOrCreateFolder(day, monthFolderId);
+    const yearFolderId = await getOrCreateFolder(year, driveContext.parentFolderId, driveContext.drive);
+    const monthFolderId = await getOrCreateFolder(month, yearFolderId, driveContext.drive);
+    const dayFolderId = await getOrCreateFolder(day, monthFolderId, driveContext.drive);
 
     const fileMetadata = {
       name: fileName,
@@ -246,25 +411,25 @@ const uploadToGoogleDrive = async (filePath, fileName, year, month, day) => {
       body: fs.createReadStream(filePath)
     };
 
-    const response = await drive.files.create({
+    const response = await driveContext.drive.files.create({
       requestBody: fileMetadata,
       media: media,
       fields: "id"
     });
 
-    console.log(`✅ Upload Google Drive successful: ${fileName} -> ID: (${response.data.id})`);
+    console.log(
+      `✅ Upload Google Drive successful [${driveContext.label}]: ${fileName} -> ID: (${response.data.id})`
+    );
 
-    // 🕒 ดึงวันเวลาปัจจุบันและฟอร์แมตเป็น "YYYY-MM-DD HH:mm:ss"
     const now = new Date();
     const formattedDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
     const formattedTime = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}:${String(now.getSeconds()).padStart(2, "0")}`;
     const timestamp = `${formattedDate} ${formattedTime}`;
 
-    // 🟢 ส่งข้อความผ่าน LINE Messaging API
-    const lineMessage = `✅ successfully\n📂 folder: ${year}/${month}/${day}\n📖 file name: ${fileName}\n📦 cloned at: ${timestamp}`;
+    const lineMessage = `✅ successfully\n☁️ drive: ${driveContext.label}\n📂 folder: ${year}/${month}/${day}\n📖 file name: ${fileName}\n📦 cloned at: ${timestamp}`;
     await sendLineMessage(lineMessage);
   } catch (error) {
-    console.error("❌ Failed to upload to Google Drive:", error.message);
+    console.error(`❌ Failed to upload to Google Drive [${driveContext.label}]:`, error.message);
   }
 };
 
@@ -290,13 +455,19 @@ const sendLineMessage = async (text) => {
 };
 
 cron.schedule(
-  process.env.CRON_SUHEDULE,
-  // "*/5 * * * *",
+  process.env.CRON_SCHEDULE,
   async () => {
     console.log("Running cron job...");
 
+    if (backupJobState.isBackupRunning()) {
+      console.log("Skipping cron job: another backup is already running");
+      return;
+    }
+
     try {
-      await GetBackupManual(process.env.GIT_OWNER, process.env.GIT_TOKEN, process.env.GIT_VERSION);
+      await GetBackupManual(process.env.GIT_OWNER, process.env.GIT_TOKEN, process.env.GIT_VERSION, {
+        driveAccount: driveConfig.DEFAULT_DRIVE_ACCOUNT
+      });
     } catch (error) {
       console.error("Error running cron job:", error);
     }
@@ -308,5 +479,10 @@ cron.schedule(
 );
 
 module.exports = {
-  GetBackupManual
+  GetBackupManual,
+  GetBackupByDateRange,
+  PreviewRepositories,
+  startBackupNow,
+  startBackupByDateRange,
+  getBackupJobStatus: backupJobState.getBackupJobStatus
 };

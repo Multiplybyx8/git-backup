@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Git Backup Dashboard</title>
+  <link rel="stylesheet" href="/css/dashboard.css" />
+</head>
+<body class="dashboard-page">
+  <header class="topbar compact-topbar">
+    <div class="topbar-inner">
+      <div class="topbar-title">
+        <h1>Git Backup</h1>
+        <span class="status-badge status-badge-online">Online</span>
+        <span class="topbar-meta">Port <%= config.port %> · <%= config.timezone %></span>
+      </div>
+      <form method="POST" action="/dashboard/logout">
+        <button type="submit" class="btn btn-ghost btn-sm">ออกจากระบบ</button>
+      </form>
+    </div>
+  </header>
+
+  <main class="dashboard-shell">
+    <section class="status-strip">
+      <div class="status-chip"><span class="chip-label">GitHub</span><strong><%= config.owner %></strong></div>
+      <div class="status-chip"><span class="chip-label">DAYS</span><strong><%= config.days %> วัน</strong></div>
+      <div class="status-chip status-chip-wide"><span class="chip-label">Cron</span><strong><%= config.cronScheduleLabel %></strong></div>
+      <div class="status-chip">
+        <span class="chip-label">LINE</span>
+        <span class="mini-badge <%= config.lineConfigured ? 'mini-badge-ok' : 'mini-badge-warn' %>">
+          <%= config.lineConfigured ? 'OK' : '—' %>
+        </span>
+      </div>
+      <% config.driveAccounts.forEach(function(account) { %>
+        <div class="status-chip">
+          <span class="chip-label"><%= account.label %></span>
+          <span class="mini-badge <%= account.configured ? 'mini-badge-ok' : 'mini-badge-warn' %>">
+            <%= account.configured ? 'OK' : '—' %>
+          </span>
+        </div>
+      <% }); %>
+    </section>
+
+    <nav class="section-nav" aria-label="เมนูหลัก">
+      <button type="button" class="section-nav-btn active" data-section="backup">
+        <span class="section-nav-icon">⬆</span>
+        <span class="section-nav-text">
+          <strong>สำรองข้อมูล</strong>
+          <small>Clone จาก GitHub → อัปโหลด Drive</small>
+        </span>
+      </button>
+      <button type="button" class="section-nav-btn" data-section="drive">
+        <span class="section-nav-icon">📁</span>
+        <span class="section-nav-text">
+          <strong>ไฟล์บน Google Drive</strong>
+          <small>ดูไฟล์ zip ที่สำรองไว้แล้ว</small>
+        </span>
+      </button>
+    </nav>
+
+    <section class="job-banner" id="jobStatusCard" hidden>
+      <div class="spinner spinner-sm"></div>
+      <div class="job-banner-text">
+        <strong id="jobType">กำลัง Backup...</strong>
+        <span id="jobCurrent" class="muted">—</span>
+        <span id="jobStarted" class="muted small"></span>
+      </div>
+    </section>
+
+    <div class="section-view" id="sectionBackup">
+      <div class="dashboard-grid">
+        <section class="panel backup-panel">
+          <div class="panel-head panel-head-accent panel-head-backup">
+            <div>
+              <h2>สำรองข้อมูล Repository</h2>
+              <p class="panel-subtitle">เลือก Drive ปลายทาง → ตั้งช่วงวันที่ → Preview หรือเริ่ม Backup</p>
+            </div>
+          </div>
+
+          <div class="backup-grid">
+            <div class="backup-step">
+              <div class="step-label">1. Google Drive ปลายทาง <span class="required">*</span></div>
+              <div class="drive-tiles" id="backupDriveTiles">
+                <% config.driveAccounts.forEach(function(account) { %>
+                  <label class="drive-tile <%= account.configured ? '' : 'drive-tile-disabled' %>">
+                    <input type="radio" name="backupDriveAccount" value="<%= account.id %>" <%= account.configured ? '' : 'disabled' %> />
+                    <div class="drive-tile-body">
+                      <div class="drive-tile-title"><%= account.label %></div>
+                      <% if (account.configured) { %>
+                        <div class="drive-tile-meta truncate"><%= account.clientEmail %></div>
+                      <% } else { %>
+                        <div class="drive-tile-meta fail">ยังไม่ตั้งค่า</div>
+                      <% } %>
+                    </div>
+                  </label>
+                <% }); %>
+              </div>
+              <p id="backupDriveRequiredHint" class="inline-alert warn">เลือก Drive ก่อนเริ่ม Backup</p>
+              <p id="backupDriveSelectedHint" class="inline-alert ok" hidden></p>
+            </div>
+
+            <div class="backup-step backup-step-locked" id="backupSettingsStep">
+              <div class="step-label">2. ตั้งค่า Backup</div>
+              <div class="form-row">
+                <div class="form-group compact">
+                  <label>Owner</label>
+                  <input type="text" id="rangeOwner" value="<%= config.owner %>" disabled />
+                </div>
+                <div class="form-group compact">
+                  <label>ตั้งแต่</label>
+                  <input type="date" id="rangeFrom" disabled />
+                </div>
+                <div class="form-group compact">
+                  <label>ถึง</label>
+                  <input type="date" id="rangeTo" disabled />
+                </div>
+              </div>
+              <div class="form-actions">
+                <div class="checkbox-row compact">
+                  <label><input type="checkbox" id="rangeNormal" checked disabled /> Normal</label>
+                  <label><input type="checkbox" id="rangeMirror" checked disabled /> Mirror</label>
+                </div>
+                <div class="button-row">
+                  <button type="button" class="btn btn-secondary btn-sm" id="btnPreview" disabled>Preview</button>
+                  <button type="button" class="btn btn-primary btn-sm" id="btnBackupRange" disabled>เริ่ม Backup</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel output-panel">
+          <div class="panel-head panel-head-tabs">
+            <button type="button" class="tab-btn active" data-tab="preview">รายการที่จะ Backup</button>
+            <button type="button" class="tab-btn" data-tab="result">ผลการ Backup</button>
+          </div>
+
+          <div class="panel-body" id="tabPreview">
+            <p class="tab-desc">ดูจาก GitHub อย่างเดียว — ยังไม่ clone หรืออัปโหลด</p>
+            <div id="previewEmpty" class="empty-state">เลือกช่วงวันที่แล้วกด Preview</div>
+            <div id="previewTable" hidden>
+              <p id="previewSummary" class="summary compact-summary"></p>
+              <div class="table-scroll">
+                <table class="compact-table">
+                  <thead><tr><th>#</th><th>Repository</th><th>Last Pushed</th></tr></thead>
+                  <tbody id="previewBody"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <div class="panel-body" id="tabResult" hidden>
+            <p class="tab-desc">สรุปหลังรัน Backup จริง — อัปโหลด Google Drive แล้ว</p>
+            <div id="resultEmpty" class="empty-state">กด "เริ่ม Backup" เพื่อดูผลลัพธ์ที่นี่</div>
+            <div id="resultLoading" class="empty-state" hidden>
+              <div class="spinner spinner-sm"></div>
+              <span>กำลัง Backup...</span>
+            </div>
+            <div id="resultPanel" hidden>
+              <p id="resultSummary" class="summary compact-summary"></p>
+              <div class="table-scroll">
+                <table class="compact-table">
+                  <thead><tr><th>Repository</th><th>Normal</th><th>Mirror</th><th>สถานะ</th></tr></thead>
+                  <tbody id="resultBody"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
+
+    <div class="section-view" id="sectionDrive" hidden>
+      <div class="dashboard-grid">
+        <section class="panel browse-panel">
+          <div class="panel-head panel-head-accent panel-head-drive">
+            <div>
+              <h2>ค้นหาไฟล์บน Google Drive</h2>
+              <p class="panel-subtitle">เลือกบัญชี Drive และช่วงวันที่ตามโฟลเดอร์ ปี/เดือน/วัน</p>
+            </div>
+          </div>
+
+          <div class="browse-grid">
+            <div class="backup-step">
+              <div class="step-label">1. Google Drive <span class="required">*</span></div>
+              <div class="drive-tiles" id="browseDriveTiles">
+                <% config.driveAccounts.forEach(function(account) { %>
+                  <label class="drive-tile <%= account.configured ? '' : 'drive-tile-disabled' %>">
+                    <input type="radio" name="browseDriveAccount" value="<%= account.id %>" <%= account.configured ? '' : 'disabled' %> />
+                    <div class="drive-tile-body">
+                      <div class="drive-tile-title"><%= account.label %></div>
+                      <% if (account.configured) { %>
+                        <div class="drive-tile-meta truncate"><%= account.clientEmail %></div>
+                      <% } else { %>
+                        <div class="drive-tile-meta fail">ยังไม่ตั้งค่า</div>
+                      <% } %>
+                    </div>
+                  </label>
+                <% }); %>
+              </div>
+              <p id="browseDriveRequiredHint" class="inline-alert warn">เลือก Drive ก่อนค้นหา</p>
+              <p id="browseDriveSelectedHint" class="inline-alert ok" hidden></p>
+            </div>
+
+            <div class="backup-step browse-step-locked" id="browseSettingsStep">
+              <div class="step-label">2. ช่วงวันที่โฟลเดอร์</div>
+              <div class="form-row browse-date-row">
+                <div class="form-group compact">
+                  <label>ตั้งแต่</label>
+                  <input type="date" id="browseFrom" disabled />
+                </div>
+                <div class="form-group compact">
+                  <label>ถึง</label>
+                  <input type="date" id="browseTo" disabled />
+                </div>
+              </div>
+              <div class="form-actions">
+                <p class="browse-note">แสดงไฟล์ .zip ในโฟลเดอร์ <code>ปี/เดือน/วัน</code> ตามช่วงที่เลือก</p>
+                <div class="button-row">
+                  <button type="button" class="btn btn-primary btn-sm" id="btnBrowseDrive" disabled>ค้นหาไฟล์</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel output-panel">
+          <div class="panel-head panel-head-accent panel-head-drive-results">
+            <div>
+              <h2>รายการไฟล์บน Drive</h2>
+              <p class="panel-subtitle">ไฟล์ zip ที่แอปสำรองไว้แล้ว — ไม่รวมไฟล์ที่อัปโหลดจากที่อื่น</p>
+            </div>
+          </div>
+
+          <div class="panel-body">
+            <div id="browseEmpty" class="empty-state">เลือก Drive และช่วงวันที่ แล้วกด "ค้นหาไฟล์"</div>
+            <div id="browseLoading" class="empty-state" hidden>
+              <div class="spinner spinner-sm"></div>
+              <span>กำลังโหลดจาก Google Drive...</span>
+            </div>
+            <div id="browsePanel" hidden>
+              <p id="browseSummary" class="summary compact-summary"></p>
+              <div class="table-scroll">
+                <table class="compact-table">
+                  <thead>
+                    <tr>
+                      <th>#</th>
+                      <th>ชื่อไฟล์</th>
+                      <th>โฟลเดอร์</th>
+                      <th>ขนาด</th>
+                      <th>อัปโหลดเมื่อ</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody id="browseBody"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
+  </main>
+
+  <div id="toast" class="toast" hidden></div>
+
+  <script>
+    const config = <%- JSON.stringify(config) %>;
+    let pollTimer = null;
+    let selectedBackupDriveAccount = null;
+    let selectedBrowseDriveAccount = null;
+    const driveAccounts = config.driveAccounts || [];
+    const backupSettingsStep = document.getElementById("backupSettingsStep");
+    const backupDriveRequiredHint = document.getElementById("backupDriveRequiredHint");
+    const backupDriveSelectedHint = document.getElementById("backupDriveSelectedHint");
+    const browseSettingsStep = document.getElementById("browseSettingsStep");
+    const browseDriveRequiredHint = document.getElementById("browseDriveRequiredHint");
+    const browseDriveSelectedHint = document.getElementById("browseDriveSelectedHint");
+    const backupFieldIds = ["rangeOwner", "rangeFrom", "rangeTo", "rangeNormal", "rangeMirror", "btnPreview", "btnBackupRange"];
+    const browseFieldIds = ["browseFrom", "browseTo", "btnBrowseDrive"];
+
+    const switchSection = (section) => {
+      document.querySelectorAll(".section-nav-btn").forEach((btn) => {
+        btn.classList.toggle("active", btn.dataset.section === section);
+      });
+      document.getElementById("sectionBackup").hidden = section !== "backup";
+      document.getElementById("sectionDrive").hidden = section !== "drive";
+    };
+
+    document.querySelectorAll(".section-nav-btn").forEach((btn) => {
+      btn.addEventListener("click", () => switchSection(btn.dataset.section));
+    });
+
+    const setBackupFormEnabled = (enabled) => {
+      backupSettingsStep.classList.toggle("backup-step-locked", !enabled);
+      backupFieldIds.forEach((id) => {
+        const el = document.getElementById(id);
+        if (el) el.disabled = !enabled;
+      });
+    };
+
+    const setBrowseFormEnabled = (enabled) => {
+      browseSettingsStep.classList.toggle("browse-step-locked", !enabled);
+      browseFieldIds.forEach((id) => {
+        const el = document.getElementById(id);
+        if (el) el.disabled = !enabled;
+      });
+    };
+
+    const updateBackupDriveSelection = () => {
+      const checked = document.querySelector('input[name="backupDriveAccount"]:checked');
+      selectedBackupDriveAccount = checked ? checked.value : null;
+      const selected = driveAccounts.find((item) => item.id === selectedBackupDriveAccount);
+
+      if (!selected) {
+        backupDriveRequiredHint.hidden = false;
+        backupDriveSelectedHint.hidden = true;
+        setBackupFormEnabled(false);
+        return;
+      }
+
+      backupDriveRequiredHint.hidden = true;
+      backupDriveSelectedHint.hidden = false;
+      backupDriveSelectedHint.textContent = `เลือก: ${selected.label}`;
+      setBackupFormEnabled(true);
+    };
+
+    const updateBrowseDriveSelection = () => {
+      const checked = document.querySelector('input[name="browseDriveAccount"]:checked');
+      selectedBrowseDriveAccount = checked ? checked.value : null;
+      const selected = driveAccounts.find((item) => item.id === selectedBrowseDriveAccount);
+
+      if (!selected) {
+        browseDriveRequiredHint.hidden = false;
+        browseDriveSelectedHint.hidden = true;
+        setBrowseFormEnabled(false);
+        return;
+      }
+
+      browseDriveRequiredHint.hidden = true;
+      browseDriveSelectedHint.hidden = false;
+      browseDriveSelectedHint.textContent = `เลือก: ${selected.label}`;
+      setBrowseFormEnabled(true);
+    };
+
+    const getSelectedBackupDriveAccount = () => {
+      if (!selectedBackupDriveAccount) throw new Error("กรุณาเลือก Google Drive ปลายทาง");
+      return selectedBackupDriveAccount;
+    };
+
+    const getSelectedBrowseDriveAccount = () => {
+      if (!selectedBrowseDriveAccount) throw new Error("กรุณาเลือก Google Drive");
+      return selectedBrowseDriveAccount;
+    };
+
+    const switchTab = (tab) => {
+      document.querySelectorAll(".tab-btn").forEach((btn) => {
+        btn.classList.toggle("active", btn.dataset.tab === tab);
+      });
+      document.getElementById("tabPreview").hidden = tab !== "preview";
+      document.getElementById("tabResult").hidden = tab !== "result";
+    };
+
+    const showResultLoading = () => {
+      switchSection("backup");
+      switchTab("result");
+      document.getElementById("resultEmpty").hidden = true;
+      document.getElementById("resultLoading").hidden = false;
+      document.getElementById("resultPanel").hidden = true;
+    };
+
+    const hideResultLoading = () => {
+      document.getElementById("resultLoading").hidden = true;
+    };
+
+    document.querySelectorAll(".tab-btn").forEach((btn) => {
+      btn.addEventListener("click", () => switchTab(btn.dataset.tab));
+    });
+
+    const toast = (msg, isError = false) => {
+      const el = document.getElementById("toast");
+      el.textContent = msg;
+      el.className = "toast" + (isError ? " toast-error" : "");
+      el.hidden = false;
+      setTimeout(() => { el.hidden = true; }, 4000);
+    };
+
+    const formatDate = (iso) => {
+      if (!iso) return "—";
+      return new Date(iso).toLocaleString("th-TH", { timeZone: "Asia/Bangkok", dateStyle: "short", timeStyle: "short" });
+    };
+
+    const escapeHtml = (value) => String(value)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+
+    const downloadIconSvg = `<svg class="icon-download" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>`;
+
+    const downloadDriveFile = async (btn) => {
+      const url = btn.dataset.url;
+      const filename = btn.dataset.filename;
+      if (!url || btn.disabled) return;
+
+      btn.disabled = true;
+      btn.classList.add("is-loading");
+      btn.setAttribute("aria-busy", "true");
+
+      try {
+        const res = await fetch(url);
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          throw new Error(data.error || "ดาวน์โหลดไม่สำเร็จ");
+        }
+
+        const blob = await res.blob();
+        const objectUrl = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = objectUrl;
+        link.download = filename || "backup.zip";
+        link.click();
+        URL.revokeObjectURL(objectUrl);
+      } catch (e) {
+        toast(e.message, true);
+      } finally {
+        btn.disabled = false;
+        btn.classList.remove("is-loading");
+        btn.removeAttribute("aria-busy");
+      }
+    };
+
+    const toDateInputValue = (date) => {
+      const y = date.getFullYear();
+      const m = String(date.getMonth() + 1).padStart(2, "0");
+      const d = String(date.getDate()).padStart(2, "0");
+      return `${y}-${m}-${d}`;
+    };
+
+    const setDefaultDates = () => {
+      const days = parseInt(config.days, 10) || 1;
+      const today = new Date();
+      const fromDate = new Date();
+      fromDate.setDate(today.getDate() - days);
+      const toValue = toDateInputValue(today);
+      const fromValue = toDateInputValue(fromDate);
+
+      document.getElementById("rangeTo").value = toValue;
+      document.getElementById("rangeFrom").value = fromValue;
+      document.getElementById("browseTo").value = toValue;
+      document.getElementById("browseFrom").value = fromValue;
+    };
+
+    const renderJobStatus = (status) => {
+      const card = document.getElementById("jobStatusCard");
+      if (!status.running) {
+        card.hidden = true;
+        return;
+      }
+      card.hidden = false;
+      document.getElementById("jobType").textContent = status.type === "cron" ? "Backup (Cron)" : "Backup";
+      document.getElementById("jobCurrent").textContent = status.currentRepo ? `· ${status.currentRepo}` : "";
+      document.getElementById("jobStarted").textContent = status.startedAt ? `· ${formatDate(status.startedAt)}` : "";
+    };
+
+    const renderLastResult = (status) => {
+      if (!status.lastResult) return;
+      const result = status.lastResult;
+      hideResultLoading();
+      switchSection("backup");
+      switchTab("result");
+      document.getElementById("resultEmpty").hidden = true;
+      document.getElementById("resultPanel").hidden = false;
+      document.getElementById("resultSummary").textContent =
+        `${result.message} · Drive: ${result.driveAccountLabel || "—"} · ${formatDate(result.finishedAt)}`;
+
+      const rows = [];
+      (result.processed || []).forEach((item) => {
+        rows.push(`<tr>
+          <td>${item.repo}</td>
+          <td>${item.normal ? "✅" : "—"}</td>
+          <td>${item.mirror ? "✅" : "—"}</td>
+          <td class="ok">สำเร็จ</td>
+        </tr>`);
+      });
+      (result.skipped || []).forEach((item) => {
+        rows.push(`<tr>
+          <td>${item.repo}</td>
+          <td>—</td>
+          <td>—</td>
+          <td class="fail">${item.reason || "ข้าม"}</td>
+        </tr>`);
+      });
+      document.getElementById("resultBody").innerHTML = rows.join("") ||
+        `<tr><td colspan="4" class="muted">ไม่มี repository ในรอบนี้</td></tr>`;
+    };
+
+    const pollStatus = async () => {
+      try {
+        const res = await fetch("/dashboard/api/status");
+        const status = await res.json();
+        renderJobStatus(status);
+        if (status.running) {
+          showResultLoading();
+        } else if (pollTimer) {
+          hideResultLoading();
+          renderLastResult(status);
+          clearInterval(pollTimer);
+          pollTimer = null;
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    };
+
+    const startPolling = () => {
+      if (pollTimer) clearInterval(pollTimer);
+      pollTimer = setInterval(pollStatus, 2000);
+      pollStatus();
+    };
+
+    const postJson = async (url, body) => {
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body)
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || data.message || "Request failed");
+      return data;
+    };
+
+    document.getElementById("btnPreview").addEventListener("click", async () => {
+      const from = document.getElementById("rangeFrom").value;
+      const to = document.getElementById("rangeTo").value;
+      const owner = document.getElementById("rangeOwner").value.trim();
+      if (!from || !to) return toast("กรุณาเลือกช่วงวันที่", true);
+
+      try {
+        const res = await fetch(`/dashboard/api/repos/preview?from=${from}&to=${to}&owner=${encodeURIComponent(owner)}`);
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Preview failed");
+
+        switchTab("preview");
+        document.getElementById("previewEmpty").hidden = true;
+        document.getElementById("previewTable").hidden = false;
+        document.getElementById("previewSummary").textContent =
+          `จะ backup ${data.total} repository · ${from} → ${to}`;
+        document.getElementById("previewBody").innerHTML = (data.repositories || []).map((repo, i) =>
+          `<tr><td>${i + 1}</td><td>${repo.name}</td><td>${formatDate(repo.pushedAt)}</td></tr>`
+        ).join("") || `<tr><td colspan="3" class="muted">ไม่พบ</td></tr>`;
+      } catch (e) {
+        toast(e.message, true);
+      }
+    });
+
+    document.getElementById("btnBackupRange").addEventListener("click", async () => {
+      const from = document.getElementById("rangeFrom").value;
+      const to = document.getElementById("rangeTo").value;
+      if (!from || !to) return toast("กรุณาเลือกช่วงวันที่", true);
+
+      try {
+        const data = await postJson("/dashboard/api/backup/range", {
+          owner: document.getElementById("rangeOwner").value.trim(),
+          driveAccount: getSelectedBackupDriveAccount(),
+          from, to,
+          includeNormal: document.getElementById("rangeNormal").checked,
+          includeMirror: document.getElementById("rangeMirror").checked
+        });
+        toast(data.message);
+        showResultLoading();
+        startPolling();
+      } catch (e) {
+        toast(e.message, true);
+      }
+    });
+
+    document.getElementById("btnBrowseDrive").addEventListener("click", async () => {
+      const from = document.getElementById("browseFrom").value;
+      const to = document.getElementById("browseTo").value;
+      if (!from || !to) return toast("กรุณาเลือกช่วงวันที่", true);
+
+      document.getElementById("browseEmpty").hidden = true;
+      document.getElementById("browsePanel").hidden = true;
+      document.getElementById("browseLoading").hidden = false;
+
+      try {
+        const driveAccount = getSelectedBrowseDriveAccount();
+        const res = await fetch(
+          `/dashboard/api/drive/files?from=${from}&to=${to}&driveAccount=${encodeURIComponent(driveAccount)}`
+        );
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "ค้นหาไฟล์ไม่สำเร็จ");
+
+        document.getElementById("browseLoading").hidden = true;
+        document.getElementById("browsePanel").hidden = false;
+        document.getElementById("browseSummary").textContent =
+          `พบ ${data.total} ไฟล์ · ${data.driveAccountLabel} · ${from} → ${to}`;
+        document.getElementById("browseBody").innerHTML = (data.files || []).map((file, i) => {
+          const downloadUrl =
+            `/dashboard/api/drive/files/${encodeURIComponent(file.id)}/download?driveAccount=${encodeURIComponent(driveAccount)}&folderPath=${encodeURIComponent(file.folderPath)}`;
+          return `<tr>
+            <td>${i + 1}</td>
+            <td>${escapeHtml(file.name)}</td>
+            <td class="mono">${escapeHtml(file.folderPath)}</td>
+            <td>${escapeHtml(file.sizeLabel || "—")}</td>
+            <td>${formatDate(file.createdTime)}</td>
+            <td class="td-actions">
+              <button
+                type="button"
+                class="btn-icon btn-download"
+                data-url="${downloadUrl}"
+                data-filename="${escapeHtml(file.name)}"
+                title="ดาวน์โหลด"
+                aria-label="ดาวน์โหลด ${escapeHtml(file.name)}"
+              >${downloadIconSvg}</button>
+            </td>
+          </tr>`;
+        }).join("") || `<tr><td colspan="6" class="muted">ไม่พบไฟล์ในช่วงวันที่นี้</td></tr>`;
+      } catch (e) {
+        document.getElementById("browseLoading").hidden = true;
+        document.getElementById("browseEmpty").hidden = false;
+        toast(e.message, true);
+      }
+    });
+
+    document.getElementById("browseBody").addEventListener("click", (event) => {
+      const btn = event.target.closest(".btn-download");
+      if (btn) downloadDriveFile(btn);
+    });
+
+    document.querySelectorAll('input[name="backupDriveAccount"]').forEach((input) => {
+      input.addEventListener("change", updateBackupDriveSelection);
+    });
+
+    document.querySelectorAll('input[name="browseDriveAccount"]').forEach((input) => {
+      input.addEventListener("change", updateBrowseDriveSelection);
+    });
+
+    setDefaultDates();
+    setBackupFormEnabled(false);
+    setBrowseFormEnabled(false);
+    updateBackupDriveSelection();
+    updateBrowseDriveSelection();
+  </script>
+</body>
+</html>

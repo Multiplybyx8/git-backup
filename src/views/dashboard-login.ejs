@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>เข้าสู่ระบบ — Git Backup</title>
+  <link rel="stylesheet" href="/css/dashboard.css" />
+</head>
+<body class="login-page">
+  <div class="login-card">
+    <h1>Git Backup</h1>
+    <p class="subtitle">Dashboard</p>
+    <% if (error) { %>
+      <div class="alert alert-error"><%= error %></div>
+    <% } %>
+    <form method="POST" action="/dashboard/login">
+      <label for="password">รหัสผ่าน</label>
+      <input type="password" id="password" name="password" required autofocus />
+      <button type="submit" class="btn btn-primary btn-block">เข้าสู่ระบบ</button>
+    </form>
+  </div>
+</body>
+</html>
