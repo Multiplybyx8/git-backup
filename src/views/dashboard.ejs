@@ -144,7 +144,7 @@
                 <%= config.cronBackup.configured ? config.cronBackup.driveAccountLabel : "ยังไม่ได้ตั้งค่า" %>
               </p>
               <p class="cron-settings-meta" id="cronBackupMeta">
-                Owner: <%= config.cronBackup.gitOwner %> · <%= config.cronScheduleLabel %>
+                <%= config.cronScheduleLabel %> · <%= config.cronBackup.source === 'dashboard' ? 'ตั้งจาก Dashboard' : (config.cronBackup.source === 'env' ? 'จาก .env' : 'ค่าเริ่มต้น') %>
               </p>
               <button type="button" class="btn btn-secondary btn-sm" id="btnSaveCronSettings" disabled>
                 ใช้ Drive + Folder ที่เลือก
@@ -595,8 +595,6 @@
       backupFolderRequiredHint.hidden = true;
       backupFolderSelectedHint.hidden = false;
       backupFolderSelectedHint.textContent = `เลือก: ${folder.label}`;
-      const ownerInput = document.getElementById("rangeOwner");
-      if (ownerInput && account.gitOwner) ownerInput.value = account.gitOwner;
       setBackupFormEnabled(true);
     };
 
@@ -927,11 +925,10 @@
     document.getElementById("btnPreview").addEventListener("click", async () => {
       const from = document.getElementById("rangeFrom").value;
       const to = document.getElementById("rangeTo").value;
-      const owner = document.getElementById("rangeOwner").value.trim();
       if (!from || !to) return toast("กรุณาเลือกช่วงวันที่", true);
 
       try {
-        const res = await fetch(`/dashboard/api/repos/preview?from=${from}&to=${to}&owner=${encodeURIComponent(owner)}`);
+        const res = await fetch(`/dashboard/api/repos/preview?from=${from}&to=${to}`);
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || "Preview failed");
 
@@ -955,7 +952,6 @@
 
       try {
         const data = await postJson("/dashboard/api/backup/range", {
-          owner: document.getElementById("rangeOwner").value.trim(),
           driveDestination: getSelectedBackupDriveDestination(),
           from, to,
           includeNormal: document.getElementById("rangeNormal").checked,
@@ -983,7 +979,7 @@
         : "ยังไม่ได้ตั้งค่า";
       const sourceLabel = cronSourceLabels[settings.source] || settings.source || "—";
       document.getElementById("cronBackupMeta").textContent =
-        `Owner: ${settings.gitOwner} · ${config.cronScheduleLabel} · ${sourceLabel}`;
+        `${config.cronScheduleLabel} · ${sourceLabel}`;
     };
 
     document.getElementById("btnSaveCronSettings").addEventListener("click", async () => {

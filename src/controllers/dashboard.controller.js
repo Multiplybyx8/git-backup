@@ -12,6 +12,8 @@ const getGithubCredentials = () => ({
   version: process.env.GIT_VERSION
 });
 
+const getGitOwner = () => process.env.GIT_OWNER;
+
 const getDashboardConfig = () => {
   const cronSchedule = process.env.CRON_SCHEDULE;
   const timezone = "Asia/Bangkok";
@@ -43,7 +45,7 @@ const getStatus = (req, res) => {
 
 const previewRepos = async (req, res) => {
   try {
-    const owner = req.query.owner || process.env.GIT_OWNER;
+    const owner = getGitOwner();
     const { from, to } = req.query;
     const { token, version } = getGithubCredentials();
 
@@ -87,7 +89,7 @@ const resolveDriveDestinationInput = (driveDestination, driveAccount) => {
 };
 
 const backupNow = (req, res) => {
-  const owner = req.body.owner || process.env.GIT_OWNER;
+  const owner = getGitOwner();
   const { token, version } = getGithubCredentials();
   const includeNormal = req.body.includeNormal !== false;
   const includeMirror = req.body.includeMirror !== false;
@@ -111,7 +113,7 @@ const backupNow = (req, res) => {
 };
 
 const backupRange = (req, res) => {
-  const owner = req.body.owner || process.env.GIT_OWNER;
+  const owner = getGitOwner();
   const { from, to } = req.body;
   const { token, version } = getGithubCredentials();
   const includeNormal = req.body.includeNormal !== false;

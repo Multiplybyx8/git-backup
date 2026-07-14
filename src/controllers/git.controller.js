@@ -2,12 +2,12 @@ const gitModel = require("../models/git.model");
 
 const BackupManual = async (req, res, next) => {
   try {
-    const { owner } = req.query;
+    const owner = process.env.GIT_OWNER;
     const GITHUB_TOKEN = process.env.GIT_TOKEN;
     const GITHUB_API_VERSION = process.env.GIT_VERSION;
 
-    if (!req.query.owner) {
-      throw new Error("Owner are required");
+    if (!owner) {
+      throw new Error("GIT_OWNER is required");
     }
 
     const resultData = await gitModel.GetBackupManual(owner, GITHUB_TOKEN, GITHUB_API_VERSION);

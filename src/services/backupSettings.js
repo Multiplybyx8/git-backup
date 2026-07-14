@@ -65,14 +65,7 @@ const getCronDriveDestination = () => {
   return getFallbackCronDestination();
 };
 
-const getCronGitOwner = () => {
-  const destinationId = getCronDriveDestination();
-  const parsed = driveConfig.parseDestinationId(destinationId);
-  if (parsed?.accountKey) {
-    return driveConfig.getGitOwner(parsed.accountKey);
-  }
-  return process.env.GIT_OWNER;
-};
+const getCronGitOwner = () => process.env.GIT_OWNER;
 
 const getCronBackupOptions = () => {
   const settings = readSettingsFile();

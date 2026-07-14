@@ -7,20 +7,17 @@ const DRIVE_ACCOUNTS = {
   multiplybyx8: {
     id: "multiplybyx8",
     label: "Multiplybyx8",
-    envSuffix: "_MULTIPLY",
-    defaultGitOwner: "Multiplybyx8"
+    envSuffix: "_MULTIPLY"
   },
   worasetx8: {
     id: "worasetx8",
     label: "Worasetx8",
-    envSuffix: "_WORASET",
-    defaultGitOwner: "worasetx8"
+    envSuffix: "_WORASET"
   },
   platformx8: {
     id: "platformx8",
     label: "Platformx8",
-    envSuffix: "_PLATFORM",
-    defaultGitOwner: "platformx8"
+    envSuffix: "_PLATFORM"
   }
 };
 
@@ -296,16 +293,6 @@ const resolveDriveAccount = (accountKey) => {
 
 const getParentFolderId = (accountKey) => getParentFolders(accountKey)[0]?.folderId || null;
 
-const getGitOwner = (accountKey) => {
-  const account = DRIVE_ACCOUNTS[accountKey];
-  if (!account) return process.env.GIT_OWNER;
-
-  const fromEnv = envKey("GIT_OWNER", account.envSuffix);
-  if (fromEnv) return fromEnv;
-
-  return account.defaultGitOwner || process.env.GIT_OWNER;
-};
-
 const getDriveClientCacheKey = (accountKey, folderKey) => `${accountKey}:${folderKey || "default"}`;
 
 const invalidateDriveClient = (accountKey) => {
@@ -410,7 +397,6 @@ const buildAccountMeta = (accountKey) => {
     oauthConnected: oauthActive && oauthStatus.connected,
     oauthEmail: oauthActive ? oauthStatus.email : null,
     oauthConnectedAt: oauthActive ? oauthStatus.connectedAt : null,
-    gitOwner: getGitOwner(accountKey),
     redirectUri: oauthCreds?.redirectUri || null,
     refreshTokenEnvKey: oauthActive ? driveOAuth.getRefreshTokenEnvKey(accountKey) : null,
     clientEmail
@@ -516,6 +502,5 @@ module.exports = {
   getDriveAccountLabel,
   getDriveDestinationLabel,
   getParentFolderId,
-  getParentFolders,
-  getGitOwner
+  getParentFolders
 };
