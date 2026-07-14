@@ -1,0 +1,59 @@
+<% const showOAuthInfoBtn = typeof showOAuthInfo !== 'undefined' && showOAuthInfo; %>
+<% accounts.forEach(function(account) { %>
+  <% if (account.authMode === 'oauth' && account.setup && !account.oauthConnected) { %>
+    <div class="drive-tile drive-tile-oauth-pending">
+      <div class="drive-tile-body">
+        <div class="drive-tile-title">
+          <%= account.label %>
+          <span class="auth-badge auth-badge-oauth">OAuth</span>
+        </div>
+        <div class="drive-tile-meta">OAuth (Gmail) — ยังไม่เชื่อมต่อ</div>
+        <div class="drive-tile-actions">
+          <a href="/dashboard/oauth/connect?driveAccount=<%= account.id %>" class="btn btn-primary btn-xs btn-oauth-connect">เชื่อมต่อ Google Drive</a>
+        </div>
+      </div>
+    </div>
+  <% } else { %>
+    <div class="drive-tile-group">
+      <label class="drive-tile <%= account.configured ? '' : 'drive-tile-disabled' %>">
+        <input type="radio" name="<%= inputName %>" value="<%= account.id %>" <%= account.configured ? '' : 'disabled' %> />
+        <div class="drive-tile-body">
+          <div class="drive-tile-title">
+            <%= account.label %>
+            <% if (account.authMode === 'oauth') { %>
+              <span class="auth-badge auth-badge-oauth">OAuth</span>
+            <% } else { %>
+              <span class="auth-badge auth-badge-sa">SA</span>
+            <% } %>
+          </div>
+          <% if (account.configured) { %>
+            <div class="drive-tile-meta truncate"><%= account.clientEmail %></div>
+            <% if (account.folders && account.folders.length > 1) { %>
+              <div class="drive-tile-meta small"><%= account.folders.length %> โฟลเดอร์</div>
+            <% } %>
+          <% } else { %>
+            <div class="drive-tile-meta fail"><%= account.setup ? 'ยังไม่พร้อมใช้งาน' : 'ยังไม่ตั้งค่า' %></div>
+          <% } %>
+        </div>
+      </label>
+      <% if (account.authMode === 'oauth' && showOAuthInfoBtn && account.setup) { %>
+        <div
+          class="drive-tile-actions drive-tile-actions-split drive-tile-actions-outside backup-oauth-actions"
+          data-account="<%= account.id %>"
+          hidden
+        >
+          <button type="button" class="btn btn-secondary btn-xs btn-oauth-info" data-account="<%= account.id %>" disabled>OAuth Config</button>
+          <% if (account.configured) { %>
+            <button
+              type="button"
+              class="btn btn-ghost btn-xs btn-oauth-disconnect"
+              data-account="<%= account.id %>"
+              data-label="<%= account.label %>"
+              disabled
+            >ยกเลิกการเชื่อมต่อ</button>
+          <% } %>
+        </div>
+      <% } %>
+    </div>
+  <% } %>
+<% }); %>

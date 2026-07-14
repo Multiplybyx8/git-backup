@@ -1,0 +1,30 @@
+<% accounts.forEach(function(account) { %>
+  <% if (!account.folders || !account.folders.length) { return; } %>
+  <div class="folder-tiles-group" data-account="<%= account.id %>" hidden>
+    <% account.folders.forEach(function(folder) { %>
+      <div class="folder-tile-item <%= account.configured ? '' : 'folder-tile-item-disabled' %>">
+        <label class="drive-tile folder-tile <%= account.configured ? '' : 'drive-tile-disabled' %>">
+          <input
+            type="radio"
+            name="<%= inputName %>"
+            value="<%= folder.destinationId %>"
+            <%= account.configured ? '' : 'disabled' %>
+          />
+          <div class="drive-tile-body folder-tile-body">
+            <div class="drive-tile-title"><%= folder.label %></div>
+          </div>
+        </label>
+        <div class="folder-tile-meta-row">
+          <span class="folder-tile-id mono small truncate" title="<%= folder.folderId %>"><%= folder.folderId %></span>
+          <button
+            type="button"
+            class="btn btn-secondary btn-xs btn-folder-copy"
+            data-folder-id="<%= folder.folderId %>"
+            title="คัดลอก Folder ID"
+            <%= account.configured ? '' : 'disabled' %>
+          >Copy</button>
+        </div>
+      </div>
+    <% }); %>
+  </div>
+<% }); %>

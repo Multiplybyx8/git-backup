@@ -9,6 +9,7 @@ const fs = require("fs");
 const cron = require("node-cron");
 const backupJobState = require("../services/backupJobState");
 const driveConfig = require("../services/driveConfig");
+const backupSettings = require("../services/backupSettings");
 
 dotenv.config();
 
@@ -52,10 +53,14 @@ const runBackupForRepos = async (owner, repositories, GITHUB_TOKEN, options = {}
     includeNormal = true,
     includeMirror = true,
     notifyEmpty = true,
+    driveDestination = null,
     driveAccount = driveConfig.DEFAULT_DRIVE_ACCOUNT
   } = options;
-  const driveAccountKey = driveConfig.resolveDriveAccount(driveAccount);
-  const driveAccountLabel = driveConfig.getDriveAccountLabel(driveAccountKey);
+  const destinationRef = driveDestination || driveAccount;
+  const destination = driveConfig.resolveDriveDestination(destinationRef);
+  const driveDestinationId = destination?.destinationId || destinationRef;
+  const driveAccountKey = destination?.accountKey || driveConfig.resolveDriveAccount(destinationRef);
+  const driveAccountLabel = driveConfig.getDriveDestinationLabel(driveDestinationId);
   const responText = "❌ No Repository to clone!";
 
   if (repositories.length === 0) {
@@ -86,11 +91,11 @@ const runBackupForRepos = async (owner, repositories, GITHUB_TOKEN, options = {}
 
     const repoResult = { repo: repoName, normal: false, mirror: false };
     if (includeNormal && normalPath) {
-      await processAndUpload(normalPath, "Normal", driveAccountKey);
+      await processAndUpload(normalPath, "Normal", driveDestinationId);
       repoResult.normal = true;
     }
     if (includeMirror && mirrorPath) {
-      await processAndUpload(mirrorPath, "Mirror", driveAccountKey);
+      await processAndUpload(mirrorPath, "Mirror", driveDestinationId);
       repoResult.mirror = true;
     }
     processed.push(repoResult);
@@ -101,6 +106,7 @@ const runBackupForRepos = async (owner, repositories, GITHUB_TOKEN, options = {}
 
   return {
     owner,
+    driveDestination: driveDestinationId,
     driveAccount: driveAccountKey,
     driveAccountLabel,
     total: repositories.length,
@@ -213,7 +219,7 @@ const startBackupByDateRange = (owner, GITHUB_TOKEN, GITHUB_API_VERSION, dateFro
   return { started: true, message: "Backup started" };
 };
 
-const processAndUpload = async (repoPath, type, driveAccount) => {
+const processAndUpload = async (repoPath, type, driveDestination) => {
   const repoName = path.basename(repoPath);
   const repoYearMonthDayPath = path.dirname(repoPath);
 
@@ -224,7 +230,7 @@ const processAndUpload = async (repoPath, type, driveAccount) => {
   console.log(`📦 Compressing (${type}): ${zipFileName}`);
   await createZip(repoYearMonthDayPath, repoName, zipPath);
 
-  await uploadToGoogleDrive(zipPath, zipFileName, year, month, day, driveAccount);
+  await uploadToGoogleDrive(zipPath, zipFileName, year, month, day, driveDestination);
 
   await cleanupFiles(repoPath, zipPath);
 };
@@ -393,10 +399,11 @@ const getOrCreateFolder = async (name, parentId, drive) => {
   }
 };
 
-const uploadToGoogleDrive = async (filePath, fileName, year, month, day, driveAccount) => {
-  const driveContext = driveConfig.getDriveClient(driveAccount);
+const uploadToGoogleDrive = async (filePath, fileName, year, month, day, driveDestination) => {
+  let driveContext;
 
   try {
+    driveContext = await driveConfig.getDriveClient(driveDestination);
     const yearFolderId = await getOrCreateFolder(year, driveContext.parentFolderId, driveContext.drive);
     const monthFolderId = await getOrCreateFolder(month, yearFolderId, driveContext.drive);
     const dayFolderId = await getOrCreateFolder(day, monthFolderId, driveContext.drive);
@@ -429,7 +436,8 @@ const uploadToGoogleDrive = async (filePath, fileName, year, month, day, driveAc
     const lineMessage = `✅ successfully\n☁️ drive: ${driveContext.label}\n📂 folder: ${year}/${month}/${day}\n📖 file name: ${fileName}\n📦 cloned at: ${timestamp}`;
     await sendLineMessage(lineMessage);
   } catch (error) {
-    console.error(`❌ Failed to upload to Google Drive [${driveContext.label}]:`, error.message);
+    const label = driveContext?.label || driveDestination;
+    console.error(`❌ Failed to upload to Google Drive [${label}]:`, error.message);
   }
 };
 
@@ -465,8 +473,16 @@ cron.schedule(
     }
 
     try {
-      await GetBackupManual(process.env.GIT_OWNER, process.env.GIT_TOKEN, process.env.GIT_VERSION, {
-        driveAccount: driveConfig.DEFAULT_DRIVE_ACCOUNT
+      const cronOptions = backupSettings.getCronBackupOptions();
+      if (!cronOptions.driveDestination) {
+        console.error("Skipping cron job: no configured Google Drive destination");
+        return;
+      }
+
+      await GetBackupManual(cronOptions.owner, process.env.GIT_TOKEN, process.env.GIT_VERSION, {
+        driveDestination: cronOptions.driveDestination,
+        includeNormal: cronOptions.includeNormal,
+        includeMirror: cronOptions.includeMirror
       });
     } catch (error) {
       console.error("Error running cron job:", error);

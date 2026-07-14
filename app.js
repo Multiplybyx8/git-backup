@@ -1,6 +1,5 @@
 // Required modules and configuration
 const createError = require("http-errors");
-const fs = require("fs");
 const express = require("express");
 const path = require("path");
 const cookieParser = require("cookie-parser");
@@ -9,7 +8,6 @@ const dotenv = require("dotenv");
 const { api: loggerApi } = require("./src/middleware/logger");
 const gitRouter = require("./src/routes/git.routes");
 const dashboardRouter = require("./src/routes/dashboard.routes");
-const { apiKeyMiddleware } = require("./src/middleware/middleware");
 
 dotenv.config();
 
@@ -47,7 +45,6 @@ app.use((req, res, next) => {
 app.get("/", (req, res) => res.render("successed.ejs"));
 app.get("/favicon.ico", (req, res) => res.sendStatus(204));
 
-// app.use(apiKeyMiddleware);
 app.use("/api", gitRouter);
 app.use("/dashboard", dashboardRouter);
 

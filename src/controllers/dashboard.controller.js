@@ -2,7 +2,8 @@ const dotenv = require("dotenv");
 const gitModel = require("../models/git.model");
 const { describeCronSchedule } = require("../helpers/cronHelper");
 const driveConfig = require("../services/driveConfig");
-const { listDriveBackupsByDateRange, getDriveFileDownloadStream } = require("../services/driveBrowseService");
+const backupSettings = require("../services/backupSettings");
+const { listDriveBackupsByDateRange, listDriveItemsByCreateDate, getDriveFileDownloadStream } = require("../services/driveBrowseService");
 
 dotenv.config();
 
@@ -22,21 +23,18 @@ const getDashboardConfig = () => {
     cronScheduleLabel: describeCronSchedule(cronSchedule, timezone),
     port: process.env.PORT || 33776,
     timezone,
-    driveFolderId: process.env.PARENT_FOLDER_ID,
-    defaultDriveAccount: driveConfig.DEFAULT_DRIVE_ACCOUNT,
     driveAccounts: driveConfig.getDriveAccountOptions(),
-    lineConfigured: Boolean(process.env.LINE_CHANNEL_ACCESS_TOKEN && process.env.LINE_USER_ID)
+    lineConfigured: Boolean(process.env.LINE_CHANNEL_ACCESS_TOKEN && process.env.LINE_USER_ID),
+    cronBackup: backupSettings.getCronSettingsView()
   };
 };
 
 const showDashboard = (req, res) => {
+  const portalUser = req.portalAuth?.user || null;
   res.render("dashboard.ejs", {
-    config: getDashboardConfig()
+    config: getDashboardConfig(),
+    portalUser
   });
-};
-
-const getConfig = (req, res) => {
-  res.json(getDashboardConfig());
 };
 
 const getStatus = (req, res) => {
@@ -66,16 +64,26 @@ const previewRepos = async (req, res) => {
   }
 };
 
-const resolveDriveAccountInput = (driveAccount) => {
-  if (!driveAccount) {
+const resolveDriveDestinationInput = (driveDestination, driveAccount) => {
+  const input = driveDestination || driveAccount;
+  if (!input) {
     return { error: "กรุณาเลือก Google Drive ปลายทาง" };
   }
 
-  if (!driveConfig.isDriveAccountConfigured(driveAccount)) {
-    return { error: `Google Drive account "${driveAccount}" ไม่ถูกต้องหรือยังไม่ได้ตั้งค่า` };
+  const destination = driveConfig.parseDestinationId(input);
+  if (!destination) {
+    return { error: `ปลายทาง Google Drive "${input}" ไม่ถูกต้อง` };
   }
 
-  return { driveAccount };
+  if (!driveConfig.isDriveDestinationConfigured(destination.destinationId)) {
+    const mode = driveConfig.getAuthMode(destination.accountKey);
+    if (mode === "oauth" && driveConfig.isDriveAccountSetup(destination.accountKey)) {
+      return { error: `กรุณาเชื่อมต่อ Google Drive (OAuth) สำหรับ "${destination.accountKey}" ก่อนเริ่ม Backup` };
+    }
+    return { error: `Google Drive "${driveConfig.getDriveDestinationLabel(destination.destinationId)}" ไม่พร้อมใช้งาน` };
+  }
+
+  return { driveDestination: destination.destinationId };
 };
 
 const backupNow = (req, res) => {
@@ -83,7 +91,7 @@ const backupNow = (req, res) => {
   const { token, version } = getGithubCredentials();
   const includeNormal = req.body.includeNormal !== false;
   const includeMirror = req.body.includeMirror !== false;
-  const driveResult = resolveDriveAccountInput(req.body.driveAccount);
+  const driveResult = resolveDriveDestinationInput(req.body.driveDestination, req.body.driveAccount);
 
   if (driveResult.error) {
     return res.status(400).json({ error: driveResult.error });
@@ -92,7 +100,7 @@ const backupNow = (req, res) => {
   const result = gitModel.startBackupNow(owner, token, version, {
     includeNormal,
     includeMirror,
-    driveAccount: driveResult.driveAccount
+    driveDestination: driveResult.driveDestination
   });
 
   if (!result.started) {
@@ -113,7 +121,7 @@ const backupRange = (req, res) => {
     return res.status(400).json({ error: "from and to are required (YYYY-MM-DD)" });
   }
 
-  const driveResult = resolveDriveAccountInput(req.body.driveAccount);
+  const driveResult = resolveDriveDestinationInput(req.body.driveDestination, req.body.driveAccount);
   if (driveResult.error) {
     return res.status(400).json({ error: driveResult.error });
   }
@@ -121,7 +129,7 @@ const backupRange = (req, res) => {
   const result = gitModel.startBackupByDateRange(owner, token, version, from, to, {
     includeNormal,
     includeMirror,
-    driveAccount: driveResult.driveAccount
+    driveDestination: driveResult.driveDestination
   });
 
   if (!result.started) {
@@ -133,18 +141,18 @@ const backupRange = (req, res) => {
 
 const browseDriveFiles = async (req, res) => {
   try {
-    const { from, to, driveAccount } = req.query;
+    const { from, to, driveDestination, driveAccount } = req.query;
 
     if (!from || !to) {
       return res.status(400).json({ error: "from and to are required (YYYY-MM-DD)" });
     }
 
-    const driveResult = resolveDriveAccountInput(driveAccount);
+    const driveResult = resolveDriveDestinationInput(driveDestination, driveAccount);
     if (driveResult.error) {
       return res.status(400).json({ error: driveResult.error });
     }
 
-    const result = await listDriveBackupsByDateRange(driveResult.driveAccount, from, to);
+    const result = await listDriveBackupsByDateRange(driveResult.driveDestination, from, to);
     res.json(result);
   } catch (error) {
     console.error("Browse drive files failed:", error);
@@ -152,24 +160,46 @@ const browseDriveFiles = async (req, res) => {
   }
 };
 
+const browseDriveAllItems = async (req, res) => {
+  try {
+    const { from, to, driveDestination, driveAccount } = req.query;
+
+    if (!from || !to) {
+      return res.status(400).json({ error: "from and to are required (YYYY-MM-DD)" });
+    }
+
+    const driveResult = resolveDriveDestinationInput(driveDestination, driveAccount);
+    if (driveResult.error) {
+      return res.status(400).json({ error: driveResult.error });
+    }
+
+    const result = await listDriveItemsByCreateDate(driveResult.driveDestination, from, to);
+    res.json(result);
+  } catch (error) {
+    console.error("Browse all drive items failed:", error);
+    res.status(500).json({ error: error.message || "Failed to browse Google Drive items" });
+  }
+};
+
 const downloadDriveFile = async (req, res) => {
   try {
     const { fileId } = req.params;
-    const { driveAccount, folderPath } = req.query;
+    const { driveDestination, driveAccount, folderPath } = req.query;
 
     if (!fileId) {
       return res.status(400).json({ error: "fileId is required" });
     }
 
-    const driveResult = resolveDriveAccountInput(driveAccount);
+    const driveResult = resolveDriveDestinationInput(driveDestination, driveAccount);
     if (driveResult.error) {
       return res.status(400).json({ error: driveResult.error });
     }
 
     const { stream, name, mimeType } = await getDriveFileDownloadStream(
-      driveResult.driveAccount,
+      driveResult.driveDestination,
       fileId,
-      folderPath
+      folderPath,
+      { verifyParent: req.query.mode === "all" || !folderPath }
     );
 
     const safeName = name.replace(/[^\w\s.\-()[\]]/g, "_");
@@ -197,13 +227,41 @@ const downloadDriveFile = async (req, res) => {
   }
 };
 
+const getCronSettings = (req, res) => {
+  res.json(backupSettings.getCronSettingsView());
+};
+
+const saveCronSettings = (req, res) => {
+  try {
+    const driveResult = resolveDriveDestinationInput(req.body.driveDestination, req.body.driveAccount);
+    if (driveResult.error) {
+      return res.status(400).json({ error: driveResult.error });
+    }
+
+    const result = backupSettings.saveCronSettings({
+      driveDestination: driveResult.driveDestination,
+      includeNormal: req.body.includeNormal,
+      includeMirror: req.body.includeMirror
+    });
+
+    res.json(result);
+  } catch (error) {
+    console.error("Save cron settings failed:", error);
+    res.status(error.statusCode || 500).json({
+      error: error.message || "Failed to save cron settings"
+    });
+  }
+};
+
 module.exports = {
   showDashboard,
-  getConfig,
   getStatus,
   previewRepos,
   backupNow,
   backupRange,
   browseDriveFiles,
-  downloadDriveFile
+  browseDriveAllItems,
+  downloadDriveFile,
+  getCronSettings,
+  saveCronSettings
 };

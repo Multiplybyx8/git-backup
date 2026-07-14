@@ -1,8 +1,4 @@
-const isEmpty = require("lodash.isempty");
-const dotenv = require("dotenv");
 const gitModel = require("../models/git.model");
-
-dotenv.config();
 
 const BackupManual = async (req, res, next) => {
   try {

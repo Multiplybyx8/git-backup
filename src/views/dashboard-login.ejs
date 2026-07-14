@@ -10,12 +10,22 @@
   <div class="login-card">
     <h1>Git Backup</h1>
     <p class="subtitle">Dashboard</p>
+    <% if (typeof usePortal !== 'undefined' && usePortal) { %>
+      <p class="login-hint">เข้าสู่ระบบด้วยบัญชี Portal</p>
+    <% } %>
     <% if (error) { %>
       <div class="alert alert-error"><%= error %></div>
     <% } %>
     <form method="POST" action="/dashboard/login">
-      <label for="password">รหัสผ่าน</label>
-      <input type="password" id="password" name="password" required autofocus />
+      <% if (typeof usePortal !== 'undefined' && usePortal) { %>
+        <label for="username">Username</label>
+        <input type="text" id="username" name="username" autocomplete="username" required autofocus />
+        <label for="password">Password</label>
+        <input type="password" id="password" name="password" autocomplete="current-password" required />
+      <% } else { %>
+        <label for="password">รหัสผ่าน</label>
+        <input type="password" id="password" name="password" required autofocus />
+      <% } %>
       <button type="submit" class="btn btn-primary btn-block">เข้าสู่ระบบ</button>
     </form>
   </div>

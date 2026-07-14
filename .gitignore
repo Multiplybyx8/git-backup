@@ -131,3 +131,7 @@ dist
 package-lock.json
 temp_repos
 service-account*
+data/oauth-tokens.json
+data/backup-settings.json
+*.md
+.env.*
