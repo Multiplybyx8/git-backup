@@ -71,10 +71,12 @@ const checkPortalPermission = async (token) => {
   }
 
   try {
+    // Portal ค้น tbltoken ด้วยค่า Authorization ทั้งก้อน (ไม่ strip Bearer)
+    // แต่ login บันทึกแค่ JWT → ส่ง Authorization: <token> ไม่ใส่ Bearer
     const { data } = await axios({
       method: "get",
       url: `${portalUrl}/user/check_permission`,
-      headers: { Authorization: `Bearer ${token}` },
+      headers: { Authorization: String(token) },
       httpsAgent
     });
 
